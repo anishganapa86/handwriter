@@ -2,5 +2,8 @@ node_modules/
 dist/
 __pycache__/
 .pytest_cache/
-data/
+data/*
+!data/glyphs.json
+!data/style.json
+!data/glyph_sheets/
 *.log
