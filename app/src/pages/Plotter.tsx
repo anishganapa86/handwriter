@@ -73,6 +73,13 @@ export default function Plotter() {
         <p className="warn">
           Do every new setup as a dry run first: the pen then writes 5 mm above the paper so you can watch a whole job safely.
         </p>
+        <p className="muted small">
+          Pencil holder: the head mount and spring module are Falu Mendy Vergara's Universal Modular Tool System (
+          <a href="https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series" target="_blank" rel="noreferrer">
+            MakerWorld
+          </a>
+          ), used with the pencil guide in <code>hardware/out</code>. Plotting approach from gtls64/p1s-pen-plotter and rebelthor's P1S guide.
+        </p>
       </div>
       <div className="panel">
         <p>

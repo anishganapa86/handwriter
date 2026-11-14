@@ -118,11 +118,16 @@ def thin(points, spacing=0.06):
     return points[keep]
 
 
+def paper_left(pen, page_w):
+    x0, _, x1, _ = pen.reach()
+    return float(np.clip((x0 + x1) / 2 - page_w / 2, 0.0, BED - page_w))
+
+
 def place_page(strokes, page_w, page_h, pen):
     x0, y0, x1, y1 = pen.reach()
     if page_w > BED:
         return [], [f"The page is {page_w:g} mm wide but the plate is {BED:g} mm."]
-    left = float(np.clip((x0 + x1) / 2 - page_w / 2, 0.0, BED - page_w))
+    left = paper_left(pen, page_w)
     back = pen.back_stop_y
     upright = lambda p: np.stack([left + p[:, 0], back - p[:, 1]], axis=1)
     turned = lambda p: np.stack([left + page_w - p[:, 0], back - (page_h - p[:, 1])], axis=1)

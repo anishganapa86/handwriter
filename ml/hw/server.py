@@ -279,7 +279,7 @@ def plotter_info():
     pen = plotter.load_pen(PLOTTER)
     x0, y0, x1, y1 = pen.reach()
     width, height = LETTER["width"], LETTER["height"]
-    left = float(np.clip((x0 + x1) / 2 - width / 2, 0.0, plotter.BED - width))
+    left = plotter.paper_left(pen, width)
     top_a, bottom_a = pen.back_stop_y - y1, pen.back_stop_y - y0
     top_b, bottom_b = height - pen.back_stop_y + y0, height - pen.back_stop_y + y1
     if y1 <= y0 or x1 <= x0:
@@ -463,6 +463,9 @@ def blind_reset():
 
 
 app.mount("/files", StaticFiles(directory=str(DATA)), name="files")
+
+if (ROOT / "demo" / "out").exists():
+    app.mount("/demo", StaticFiles(directory=str(ROOT / "demo" / "out"), html=True), name="demo")
 
 if DIST.exists():
     app.mount("/assets", StaticFiles(directory=str(DIST / "assets")), name="assets")

@@ -1,8 +1,33 @@
 # Handwriter
 
-Writes typed text in your own handwriting: first as an on-screen stroke-by-stroke preview, later on paper with a pen on a Klipper printer.
+Writes typed text in your own handwriting: first as an on-screen stroke-by-stroke preview, then on paper with a pencil or pen held on a Bambu Lab P1S.
 
-Phase 1 (this repository today) is the handwriting model and everything around it. Phase 2 (plotter hardware and G-code) is designed below but deliberately not built until the blind test passes.
+What works today: a letter library traced from photographed alphabet pages writes exactly what is typed, in the measured habits of the hand; the page becomes a `.gcode.3mf` that Bambu Studio sends to the P1S; a pencil guide for Falu's modular head mount is designed and checked on screen. What has not happened yet: nothing has run on the real printer, the holder has not been printed, and the blind test against real writing has not been run.
+
+## Demo
+
+```
+python demo/run_demo.py
+```
+
+runs the whole chain on a letter-size page of text that was never in the source pages and writes everything to `demo/out/` (open `demo/out/index.html`, or `http://localhost:8000/demo/` while the server runs):
+
+1. the typed text is laid out and written with the letter library (`1_page.png`, and `2_writing.gif` stroke by stroke);
+2. the page is placed on the P1S plate with the pencil-holder clearances, split into two passes and written to two dry-run `.gcode.3mf` files that pass the safety simulation (`3_on_the_plate.png`);
+3. the page is redrawn from nothing but the G-code and compared with the original, as proof that the files say what the page says (`4_read_back_from_gcode.png`, worst deviation 0.07 mm);
+4. the pencil guide is seated in Falu's head mount with his spring module and a pencil and checked for collisions (`5_pencil_holder.png`).
+
+The script exits with an error if a character has no sample, a file fails the safety check, or the read-back drifts more than 0.2 mm. `report.json` holds the numbers.
+
+![The demo page](demo/out/1_page.png)
+
+## Credits
+
+- **Pencil holder hardware: Falu Mendy Vergara** ([@FaluMendy](https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series)), "Modular System For A1, P1, & X1 Series" (UMTS). The head mount and spring modules in `hardware/falu/` are his files, unchanged, kept here for personal use under his MakerWorld licence; see `hardware/falu/README.md`. The pencil guide in `hardware/out/` copies the outside of his tool guide so that it fits his mount, and the clearances in the Plotter tab's preset come from his tested P1S profile.
+- **P1S setup guide for that system:** [rebelthor/bambu-lab-pen-plotter](https://github.com/rebelthor/bambu-lab-pen-plotter) (MIT).
+- **P1S plotting approach and printer profile:** [gtls64/p1s-pen-plotter](https://github.com/gtls64/p1s-pen-plotter) (MIT); its profile and licence are in `ml/weights/bambu/`.
+- **Base handwriting network:** [X-rayLaser/pytorch-handwriting-synthesis-toolkit](https://github.com/X-rayLaser/pytorch-handwriting-synthesis-toolkit) (MIT); weights and licence in `ml/weights/base/`.
+- **Photo tracing:** Google's InkSight (Apache-2.0). **Reading handwriting:** Microsoft TrOCR and EasyOCR.
 
 ## Model choices
 
@@ -107,9 +132,9 @@ Not done: nothing has been run on a real printer from this project; pressing Pau
 
 ## Pencil holder
 
-The pencil rides in Falu's Universal Modular Tool System for the P1S ([MakerWorld 2029113](https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series)): its head mount clips onto the toolhead and holds a 17.5 mm tool guide in three clip rings, and its spring module sits on top of the guide and grips the pen with one screw, so the pen floats up against a printed serpentine spring. Falu's files are free for personal use under MakerWorld's exclusive licence and are not in this repository; download them from MakerWorld.
+The pencil rides in Falu's Universal Modular Tool System for the P1S ([MakerWorld 2029113](https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series)): its head mount clips onto the toolhead and holds a 17.5 mm tool guide in three clip rings, and its spring module sits on top of the guide and grips the pen with one screw, so the pen floats up against a printed serpentine spring. The parts of his that this needs are in `hardware/falu/`, unchanged and credited there; they stay under his MakerWorld licence (personal use), so keep this repository private.
 
-`hardware/pencil_holder.py` makes the one part that changes for a pencil, `pencil_guide.stl`: a guide with the same outside as Falu's (17.5 mm, with 15 mm grooves where the mount's rings sit and the snap groove the spring module locks onto) and a bore sized for the pencil. The outside profile was measured from Falu's Stabilo guide; with `--falu <folder of Falu's files>` the script seats the new guide in the head mount and reports the overlap with the rings (1.4 mm3 for the 8 mm default, a snug fit) and which spring module the pencil passes through (D9 up to 8.9 mm, D11 up to 10.9 mm). It also makes `pencil_fit_rings.stl`. `hardware/preview.py` renders `hardware/out/pencil_holder_preview.png`.
+`hardware/pencil_holder.py` makes the one part that changes for a pencil, `pencil_guide.stl`: a guide with the same outside as Falu's (17.5 mm, with 15 mm grooves where the mount's rings sit and the snap groove the spring module locks onto) and a bore sized for the pencil. The outside profile was measured from Falu's Stabilo guide; the script seats the new guide in the head mount and reports the overlap with the rings (1.4 mm3 for the 8 mm default, a snug fit) and which spring module the pencil passes through (D9 up to 8.9 mm, D11 up to 10.9 mm). It also makes `pencil_fit_rings.stl`. `hardware/preview.py` renders `hardware/out/pencil_holder_preview.png`.
 
 1. Measure the pencil barrel, print `pencil_fit_rings.stl` (bores of the measured size -0.4 to +0.8 mm in 0.2 mm steps, marked by 1-7 bumps), and pick the tightest ring the pencil slides through freely.
 2. `python hardware/pencil_holder.py --pencil 8.2` with that size (the bore adds 0.4 mm). If the pencil narrows towards the tip, `--tip 6.0 12` makes the bottom 12 mm of the bore fit a 6 mm tip section so the point cannot wobble.

@@ -58,12 +58,40 @@ def section(mesh, title):
     return img
 
 
+def assembly(falu, pencil_d=8.0, seat=1.35, spring_depth=9.25, spring_turn=105.0):
+    import pencil_holder as ph
+    ox, oy = ph.RING_AXIS
+    mount = ph.from_stl(falu / ph.MOUNT_FILE)
+    guide = ph.from_stl(OUT / "pencil_guide.stl").translate([ox, oy, seat])
+    name = next(k for k, (_, d) in ph.SPRINGS.items() if pencil_d + 0.3 <= d)
+    spring = ph.from_stl(falu / ph.SPRINGS[name][0]).translate([-24.2, 0, -10]).rotate([90, 0, 0]).rotate([0, 0, spring_turn])
+    spring = spring.translate([ox, oy, seat + ph.LENGTH - spring_depth])
+    r = pencil_d / 2
+    pencil = ph.Manifold.cylinder(150, r, r, 48).translate([ox, oy, seat - 25])
+    pencil = pencil + ph.Manifold.cylinder(6, 0.4, r, 48).translate([ox, oy, seat - 31])
+    clashes = {
+        "guide_in_mount_mm3": round((guide ^ mount).volume(), 2),
+        "spring_on_guide_mm3": round((spring ^ guide).volume(), 2),
+        "spring_against_mount_mm3": round((spring ^ mount).volume(), 2),
+        "pencil_in_guide_mm3": round((pencil ^ guide).volume(), 2),
+        "pencil_in_spring_mm3": round((pencil ^ spring).volume(), 2),
+    }
+    combo = trimesh.util.concatenate([ph.to_mesh(m) for m in (mount, guide, spring, pencil)])
+    views = ((30, 15, "assembled - front left"), (120, 15, "assembled - clip side"), (0, 89.9, "assembled - from above"))
+    image = np.hstack([shade(combo, yaw, pitch, title) for yaw, pitch, title in views])
+    cv2.imwrite(str(OUT / "pencil_holder_assembly.png"), image)
+    return {"spring_module": name, **clashes}
+
+
 def main():
     guide = trimesh.load(OUT / "pencil_guide.stl")
     rings = trimesh.load(OUT / "pencil_fit_rings.stl")
     tiles = [shade(guide, 35, 20, "pencil_guide"), section(guide, "pencil_guide cut along its axis (mm)"),
              shade(rings, 35, 30, "pencil_fit_rings")]
     cv2.imwrite(str(OUT / "pencil_holder_preview.png"), np.hstack(tiles))
+    falu = Path(__file__).resolve().parent / "falu"
+    if falu.exists():
+        print(assembly(falu))
 
 
 if __name__ == "__main__":

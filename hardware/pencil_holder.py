@@ -9,6 +9,7 @@ import trimesh
 from manifold3d import CrossSection, Manifold, Mesh
 
 OUT = Path(__file__).resolve().parent / "out"
+FALU = Path(__file__).resolve().parent / "falu"
 SEG = 128
 MOUNT_FILE = "Head-Mount-V1-Series X and Series P.stl"
 GUIDE_FILE = "Tool Guide Modules/Guide Stabilo D 8 55mm.stl"
@@ -109,7 +110,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--pencil", type=float, default=Guide.pencil_d)
     p.add_argument("--tip", type=float, nargs=2, metavar=("DIAMETER", "LENGTH"))
-    p.add_argument("--falu", type=Path)
+    p.add_argument("--falu", type=Path, default=FALU if FALU.exists() else None)
     a = p.parse_args()
     g = Guide(pencil_d=a.pencil)
     if a.tip:
