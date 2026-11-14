@@ -1,0 +1,122 @@
+# Handwriter
+
+Writes typed text in your own handwriting: first as an on-screen stroke-by-stroke preview, later on paper with a pen on a Klipper printer.
+
+Phase 1 (this repository today) is the handwriting model and everything around it. Phase 2 (plotter hardware and G-code) is designed below but deliberately not built until the blind test passes.
+
+## Model choices
+
+| Role | Choice | Licence | Why |
+|---|---|---|---|
+| Text to strokes | Graves-style attention LSTM + mixture density network, weights from [X-rayLaser/pytorch-handwriting-synthesis-toolkit](https://github.com/X-rayLaser/pytorch-handwriting-synthesis-toolkit) (`checkpoints/Epoch_56`) | MIT | PyTorch, English weights, emits pen offsets for a whole line, trains on plain (strokes, transcript) pairs, 15 MB, runs on CPU/MPS/CUDA |
+| Photo to ink | [InkSight Small-p](https://huggingface.co/Derendering/InkSight-Small-p) | Apache-2.0 | Public weights, word-level "recognize and derender" returns transcript and strokes |
+| Recognizer for CER | [microsoft/trocr-small-handwritten](https://huggingface.co/microsoft/trocr-small-handwritten) | MIT | Independent judge of legibility on rendered lines |
+
+The base weights were trained by their author on IAM-OnDB, which is licensed for non-commercial research. The code and weight files are MIT, but treat anything derived from them as personal-use.
+
+`ml/hw/model.py` is a re-implementation whose parameter names match the published checkpoint, so the weights load directly. It adds batched sampling, masked loss, stall detection, style priming and character-set extension.
+
+## Layout
+
+```
+app/            React + TypeScript UI (capture, write preview, photo review, worksheet, blind test, training)
+app/src/script.json   65 prompted lines: 60 for training, 5 held out
+ml/hw/          model, dataset, training, evaluation, layout layer, worksheet, photo-to-ink, API server
+ml/weights/base/      MIT base checkpoint, stats, licence
+ml/inksight_worker.py runs in its own TensorFlow environment
+data/           sessions, photo words, checkpoints, reports (created at runtime)
+```
+
+## Running it
+
+Windows PC (training and serving):
+
+```
+python -m venv C:\Users\<you>\.venvs\handwriter
+C:\Users\<you>\.venvs\handwriter\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu128
+C:\Users\<you>\.venvs\handwriter\Scripts\pip install -r ml\requirements.txt
+cd app && npm install && npm run build && cd ..
+C:\Users\<you>\.venvs\handwriter\Scripts\python -m uvicorn hw.server:app --app-dir ml --host 0.0.0.0 --port 8000
+```
+
+Open `http://<pc-ip>:8000` on the iPad or the Wacom machine. Browsers only expose the full pen sample rate (coalesced events) on a secure page, so for an iPad add `--ssl-keyfile key.pem --ssl-certfile cert.pem` with a self-signed certificate and open `https://<pc-ip>:8000`; over plain http the page still works at the display refresh rate. Keep the virtual environment on a short path; PyTorch does not install under very long Windows paths.
+
+MacBook (inference only): `pip install torch -r ml/requirements.txt`, copy `data/checkpoints/` across, run the same uvicorn command. Generation defaults to CPU, which is faster than a GPU for this small recurrent model; set `HW_DEVICE=mps` to try MPS.
+
+InkSight needs TensorFlow with tensorflow-text, which has no Windows build, so on Windows the server calls it through WSL at `~/inksight-venv`. Use TensorFlow 2.21 with its CUDA extras: on this PC the RTX 5060 Ti takes about 4 seconds per word, 2.20 cannot drive the card, and CPU inference takes several minutes per word.
+
+```
+wsl -e bash -lc "python3 -m virtualenv ~/inksight-venv && ~/inksight-venv/bin/pip install 'tensorflow[and-cuda]==2.21.0' tensorflow-text==2.21.1 huggingface_hub pillow numpy"
+```
+
+On macOS/Linux create `~/inksight-venv` the same way, or set `HW_INKSIGHT_PYTHON` to another interpreter. `HW_INKSIGHT_MODEL` can point at a local SavedModel folder instead of the Hugging Face id.
+
+## How the pieces work
+
+**Capture.** Pointer events (coalesced where the browser allows) record x and y in millimetres, time in ms, pressure and tilt. Millimetres come from a one-off calibration against a bank card. Each saved line autosaves to the server; the session exports as JSON and as a zip of IAM-OnDB-style stroke XML (integer coordinates in 0.01 mm, times in seconds). A pen, once seen, disables finger input.
+
+**Held-out lines.** Five script lines carry `holdout: true`. `dataset.split` removes them, and any other sample with the same transcript, from training. They are the only lines used for DTW, CER, the report and the blind test. You can add more held-out lines from the capture page.
+
+**Units.** Your strokes are scaled so your median x-height matches the base model's, and resampled in time so your median step length matches too. The scale is stored in the checkpoint, so output comes back in millimetres at your natural size.
+
+**Character set.** Characters seen at least twice in your training lines but absent from the base alphabet get new input rows, initialised from a visually similar character. The script already covers `= * < > & @ $ _ ~ { } ] | × ÷ ±`.
+
+**Training.** Always fine-tunes from the base weights on all accepted data, with light affine augmentation and early stopping on a validation split. Photo-derived words count half. Each run saves `data/checkpoints/vNNNN/` and `data/reports/vNNNN.html`.
+
+**Promotion.** The candidate and the current champion (or the base model) are both evaluated on the current held-out lines with the same seeds. The candidate is promoted only if held-out DTW drops without a CER regression, or CER drops without a DTW regression. Retraining starts automatically when 50 new lines have arrived since the last run.
+
+**Generation.** Text is generated in runs of up to 38 characters, primed with one of your real lines, then split into words using the attention alignment. Failed runs are retried, halved, and finally generated word by word inside a carrier phrase.
+
+**My letters (glyph library).** A second writing engine that needs no training. On the My letters tab you write each character two to four times; `ml/hw/glyphs.py` stores them relative to the baseline in `data/glyphs.json` and composes text from them, never repeating the same variant twice in a row and adding small size, slant, spacing and height jitter scaled by the neatness slider. It is exact on digits and symbols and suits print handwriting; letters are not joined, so it will not pass for cursive. The Write and Worksheet tabs switch between this engine and the model.
+
+**Real traced words.** Photo words accepted in Photo review are also loaded by the letters engine (`load_real_words` in `ml/hw/glyphs.py`): when a word in the text exactly matches an accepted word, its real traced strokes are placed instead of separate letters, scaled from the page's ruled-line spacing and sat on the ruled line beneath it. Words not yet accepted fall back to the letter library. Library keys longer than one character are matched longest-first, so joined pairs can be added as glyphs.
+
+**Assembling unseen words from real pieces.** `ml/hw/fragments.py` splits every accepted traced word into letters: body strokes are put in left-to-right order, and a dynamic programme places one cut per letter boundary along the pen path, trading expected letter widths (refined over three passes from the words themselves) against a preference for cutting at pen lifts and low joins. A word that was never traced is then covered with the fewest, longest pieces available, preferring pieces from the same position in a word, and neighbouring pieces are blended into one continuous stroke where both sides were joined. Capitals and characters with no traced piece fall back to the alphabet-sheet letters. This is assembly from real ink, not a trained network; its quality grows with the number of accepted words and depends on their transcripts being right.
+
+**Letter sheets (the recommended way to fill the library).** `ml/hw/template.py` generates a two-page printable PDF with 353 labelled boxes: four samples of each lowercase letter, three of each capital and digit, two of each punctuation and maths symbol, one of each extra symbol, and two each of 28 common joined pairs and endings such as `th`, `ing` and `tion`. Each sheet carries four ring-shaped corner marks, an orientation mark and a sheet-number code, so a photo taken at any angle or rotation is flattened and read without manual labelling; every filled box is traced to centre-line strokes and stored relative to the printed baseline. Filled characters replace the stored ones. The letters engine writes exactly the characters typed, using a joined unit wherever one matches, and is the default; the joined-hand piece assembly is an opt-in experiment.
+
+**Habits measured from real pages.** `python -m hw.style` (run from `ml/`, and re-run automatically by the server as more words are accepted) reads every traced word that was not rejected and writes `data/style.json`: the median gap between words and its spread, how far words sit off the ruled line, how much lines tilt, the slant of the writing and how much it varies from word to word, how much word size varies, how ragged the left margin is, and, from the letter cuts, how often the pen stays down after and before each letter. The letters engine uses these instead of fixed numbers: it shears the sheet letters to the measured slant, varies slant and size per word, spaces words as measured, bends every letter instance with a small smooth warp so repeats differ, and joins neighbouring letters with a smooth connecting stroke at the measured rate (the Joined-up slider scales it). The text is still exactly what was typed.
+
+**Importing handwritten rows on ruled paper.** A label file whose rows carry a `seq` list (the characters or joined groups in the order written), a row centre `yc`, slope `k` and half-height is read by `import_rows` in `ml/hw/sheet.py`: ruled lines are found and erased wherever no stroke crosses them, each row is split into groups by the gaps between ink, and the groups are labelled in order; an empty string in `seq` skips a crossed-out or bad sample, `cuts` forces a split and `erase` removes a stray mark. Punctuation keeps only its largest marks. `python -m hw.sheet data/glyph_sheets/sheet2_letters.json --keep` imports one page. Scale comes from the ruled-line spacing, assumed 7.1 mm.
+
+**Importing a photographed alphabet sheet.** `python -m hw.sheet data/glyph_sheets/sheet1.json` (run from `ml/`) builds the glyph library from a photo instead of the stylus. The JSON label file names the image, the row bands and, for each character, which ink blobs belong to it; `ml/hw/sheet.py` separates ink from ruled lines, thins each character to a centre line and traces it into pen strokes. Pass `--keep` to add the result as extra variants instead of replacing existing ones. A new sheet needs its own label file.
+
+**Layout layer.** Words are placed, wrapped and paginated in millimetres. `x^2`, `a_{n}` and `\frac{a}{b}` are composed from separately generated pieces with a hand-wobbled fraction bar; diagram labels are placed at absolute coordinates. Realism sliders: neatness (sampling bias), size (x-height), slant (shear), spacing (word gaps), baseline jitter (per-word and per-line drift).
+
+**Worksheet mode.** The photo is perspective-corrected from the page outline (or rotated from text lines when no outline is found), underlines and empty rectangles are suggested as blanks, and answers are shrunk and wrapped to fit each box.
+
+**Copy a page.** `ml/hw/copypage.py` takes an image or a PDF page, flattens it, finds text with EasyOCR's detector, reads each piece with TrOCR (large handwritten model on a GPU, base on CPU), and traces all remaining ink as line art with the same centre-line tracer used for the alphabet sheet. The tab shows the text boxes for correction; writing the page fits each corrected text into its box in your hand and re-traces the drawing outside the boxes. Reading handwriting is error-prone, so the transcripts are a first guess to edit, not a finished result.
+
+**Blind test.** Shows a real held-out line and a generated line for the same text in random order with identical rendering. Pass mark: at least 20 trials with the real one picked no more than 65% of the time. This gates Phase 2.
+
+## What did not work: training from photos of joined handwriting
+
+`python -m hw.ingest data/pages/history.json` (run from `ml/`) crops each page, finds words and lines using the paper's ruled lines, traces every word with InkSight and pre-fills transcripts by matching InkSight's readings against a typed transcript. Tracing is faithful: 798 word boxes from four pages, 603 matched to transcript words.
+
+Fine-tuning on those traces alone failed in three trials (all weights at two learning rates, and style layers only with the text-alignment layers frozen). Training loss looked normal but sampling stalled on the first few characters and produced scribble; priming the untrained model with a traced line failed the same way. The likely cause is that the model's alignment between text and strokes cannot lock onto fast joined writing from a few hundred noisy, untimed word traces. The promotion gate rejects such checkpoints, and automatic retraining is skipped while there are no stylus-captured lines. Photo words remain useful as extra data alongside stylus lines.
+
+## Plotting on a Bambu Lab P1S
+
+The printer turned out to be a P1S, not a Klipper machine, so the plotter side follows the approach of the MIT-licensed [gtls64/p1s-pen-plotter](https://github.com/gtls64/p1s-pen-plotter) rather than the Klipper design below. `ml/hw/plotter.py` turns page strokes into a `.gcode.3mf` that Bambu Studio opens as an already-sliced plate; `ml/weights/bambu/project_settings.json` is that project's P1S profile with its licence beside it.
+
+Every file follows the same rules, checked by `simulate` before a file is written and by the tests: all heaters stay at 0 and nothing is extruded; the printer homes before the pen is fitted and then pauses (`M400 U1`) at the front; the pen and nozzle stay on the 256 mm plate; the head keeps the holder's reach plus 5 mm from the front; Z never goes below the draw height once the pen is fitted; XY travel only happens at lift height; command lines stay under 48 characters. Dots get a dwell; consecutive strokes that meet are drawn without lifting.
+
+A letter page is longer than the plate, so `place_page` works out what the pen can reach with the saved holder settings. If the whole page is reachable it makes one file; otherwise it splits the page at the widest gap between lines into two passes, the second with the paper turned upside down against the same back stop, and reverses the coordinates for that pass. Strokes that neither pass can reach are reported with the margins needed. Pen offsets, holder reach, heights and speeds live in `data/plotter.json` and are edited on the Plotter tab, which also serves a calibration file (cross and circle, then the nozzle parks over the plate centre). Files are written to `data/plots/`. Dry run raises the pen 5 mm.
+
+Not done: nothing has been run on a real printer from this project; pressing Pause on the printer mid-job is not verified to lift the pen; no pen holder has been designed.
+
+## Phase 2 design (original Klipper plan, superseded for the P1S)
+
+- **Machine and pen profiles** (YAML, printer-agnostic): bed size, pen offset from nozzle, safe Z, draw Z, lift height, travel and draw feed rates, acceleration, firmware flavour; pen profile: barrel diameter, tip type, dwell on touch-down, minimum dot dwell, lift for travel versus lift for pause.
+- **Reversible conversion.** The holder clamps to the toolhead beside the hotend, which stays installed, cold and with heaters disabled in the plot profile. The pen tip sits below the nozzle, so Z offsets alone keep the nozzle off the paper. A separate Klipper `[include plotter.cfg]` adds macros without touching the printing config.
+- **Pen holder.** Parametric CadQuery model exported to STEP and 3MF: V-block with thumbscrew for 7–12 mm barrels, on a spring-loaded linear slide with at least 3 mm of compliant travel so pressure stays even over an imperfect bed.
+- **Post-processor.** Strokes in mm to G-code for Klipper and Marlin: stroke ordering to cut travel, guaranteed pen-down dwell, dots drawn as a tiny circle or a dwell, lift before every travel move, no XY motion while Z is changing.
+- **Job control.** Moonraker client: upload, start, pause, resume, cancel; `PAUSE` and `CANCEL_PRINT` overrides lift the pen first.
+- **Calibration page.** Paper origin, pen offset, draw height by stepping Z until a test tick marks the paper, pressure check across the page, scale check with a 100 mm square.
+- **Optional servo lift** through a Klipper `[servo]` section, selected in the machine profile.
+
+## Tests
+
+```
+C:\Users\<you>\.venvs\handwriter\Scripts\python -m pytest ml/tests
+```

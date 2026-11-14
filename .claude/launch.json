@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "handwriter",
+      "runtimeExecutable": "C:/Users/anish/.venvs/handwriter/Scripts/python.exe",
+      "runtimeArgs": ["-X", "utf8", "-m", "uvicorn", "hw.server:app", "--app-dir", "ml", "--host", "0.0.0.0", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}

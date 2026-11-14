@@ -1,0 +1,330 @@
+{
+ "version": 1,
+ "lines": [
+  {
+   "id": "L01",
+   "text": "The quick brown fox jumps over the lazy dog near the quiet river bank.",
+   "holdout": false
+  },
+  {
+   "id": "L02",
+   "text": "Pack my box with five dozen liquor jugs before the morning train leaves.",
+   "holdout": false
+  },
+  {
+   "id": "L03",
+   "text": "Sphinx of black quartz, judge my vow; then explain exactly why it matters.",
+   "holdout": false
+  },
+  {
+   "id": "L04",
+   "text": "How vexingly quick daft zebras jump when a fox walks by the frozen pond!",
+   "holdout": false
+  },
+  {
+   "id": "L05",
+   "text": "Jackdaws love my big sphinx of quartz, and so does every puzzled visitor.",
+   "holdout": false
+  },
+  {
+   "id": "L06",
+   "text": "Quentin Xavier Zimmerman quietly fixed the jazz box in Zurich last June.",
+   "holdout": false
+  },
+  {
+   "id": "L07",
+   "text": "Amazingly few discotheques provide jukeboxes, or so the old joke goes.",
+   "holdout": false
+  },
+  {
+   "id": "L08",
+   "text": "Queen Zelda asked Max, \"Could you quiz the next six boys by Friday?\"",
+   "holdout": false
+  },
+  {
+   "id": "L09",
+   "text": "We promptly judged antique ivory buckles for the next prize in Quebec.",
+   "holdout": false
+  },
+  {
+   "id": "L10",
+   "text": "Yes, I'll be there at 7:45 p.m.; don't wait up if the bus is late again.",
+   "holdout": false
+  },
+  {
+   "id": "H01",
+   "text": "Please bring the blue folder and six sharp pencils to the next meeting.",
+   "holdout": true
+  },
+  {
+   "id": "L11",
+   "text": "Alice, Bob, Carol, Dave, Eve, Frank, Grace, Heidi, Ivan and Judy came.",
+   "holdout": false
+  },
+  {
+   "id": "L12",
+   "text": "Kevin, Laura, Mallory, Niaj, Olivia, Peggy, Quinn, Rupert and Sybil left.",
+   "holdout": false
+  },
+  {
+   "id": "L13",
+   "text": "Trent, Ursula, Victor, Walter, Xena, Yusuf and Zoe stayed until the end.",
+   "holdout": false
+  },
+  {
+   "id": "L14",
+   "text": "Dear Dr. Xu, Thank you for the quick reply about Zone Q on Monday.",
+   "holdout": false
+  },
+  {
+   "id": "L15",
+   "text": "Excuse me, Mr. Quigley, is this the Xerox for Mrs. Zhang's office?",
+   "holdout": false
+  },
+  {
+   "id": "L16",
+   "text": "0 1 2 3 4 5 6 7 8 9 and back again: 9 8 7 6 5 4 3 2 1 0.",
+   "holdout": false
+  },
+  {
+   "id": "L17",
+   "text": "Call 555-0142 before 10:30, or write to Box 6789, Unit 3, Floor 12.",
+   "holdout": false
+  },
+  {
+   "id": "L18",
+   "text": "On 14 March 2026 the total was $1,284.50, up 37% from $936 in 2019.",
+   "holdout": false
+  },
+  {
+   "id": "L19",
+   "text": "Room 204 is 18.5 m by 9.75 m, so the area is about 180.4 square m.",
+   "holdout": false
+  },
+  {
+   "id": "L20",
+   "text": "Zip codes 90210, 10001 and 60614 sit next to area codes 310 and 212.",
+   "holdout": false
+  },
+  {
+   "id": "L21",
+   "text": "x = 3 and y = 4, so x + y = 7 and x * y = 12, while y - x = 1.",
+   "holdout": false
+  },
+  {
+   "id": "H02",
+   "text": "My zipper broke just as we queued for the express train at 8:15.",
+   "holdout": true
+  },
+  {
+   "id": "L22",
+   "text": "If a < b and b < c, then a < c; likewise 5 > 2 > 1 > 0 > -3.",
+   "holdout": false
+  },
+  {
+   "id": "L23",
+   "text": "Solve 2x + 6 = 18: subtract 6, divide by 2, and get x = 6.",
+   "holdout": false
+  },
+  {
+   "id": "L24",
+   "text": "(a + b) * (a - b) = a * a - b * b for all real numbers a and b.",
+   "holdout": false
+  },
+  {
+   "id": "L25",
+   "text": "The ratio 3/4 = 0.75 = 75%, and 1/8 = 0.125 = 12.5%.",
+   "holdout": false
+  },
+  {
+   "id": "L26",
+   "text": "f(x) = 2x + 1 and g(x) = x/3 - 5, so f(4) = 9 and g(9) = -2.",
+   "holdout": false
+  },
+  {
+   "id": "L27",
+   "text": "[1, 2, 3] + [4, 5] = [1, 2, 3, 4, 5], and {x | x > 0} is open.",
+   "holdout": false
+  },
+  {
+   "id": "L28",
+   "text": "Is 6 × 7 = 42 and 6 ÷ 3 = 2? Yes; and 5 ± 1 means 4 or 6.",
+   "holdout": false
+  },
+  {
+   "id": "L29",
+   "text": "12 × 12 = 144, 144 ÷ 16 = 9, and 9 ± 0.5 covers 8.5 to 9.5.",
+   "holdout": false
+  },
+  {
+   "id": "L30",
+   "text": "If |x| < 2 then -2 < x < 2; if |y| > 1 then y < -1 or y > 1.",
+   "holdout": false
+  },
+  {
+   "id": "L31",
+   "text": "Email quiz.fox@example.com & cc #team; notes live in ~/work_log.",
+   "holdout": false
+  },
+  {
+   "id": "L32",
+   "text": "Tom & Jerry owe $40 to sam@mail.org; see ~/bills/may_2026 & pay.",
+   "holdout": false
+  },
+  {
+   "id": "H03",
+   "text": "Total: 3 * 24 + 16 = 88, which is exactly what Jack and Quinn expected.",
+   "holdout": true
+  },
+  {
+   "id": "L33",
+   "text": "Set {a, b} and set {b, c} share b; so do [0, 4] and [3, 7].",
+   "holdout": false
+  },
+  {
+   "id": "L34",
+   "text": "Mean = sum / n; here (72 + 85 + 91) / 3 = 82.67, about 83%.",
+   "holdout": false
+  },
+  {
+   "id": "L35",
+   "text": "Speed = distance / time = 150 km / 2.5 h = 60 km/h exactly.",
+   "holdout": false
+  },
+  {
+   "id": "L36",
+   "text": "Why? Because! Really? Yes: no; maybe... \"quoted\" and 'single' too.",
+   "holdout": false
+  },
+  {
+   "id": "L37",
+   "text": "\"Wait,\" she said, \"isn't that John's coat (the grey one) over there?\"",
+   "holdout": false
+  },
+  {
+   "id": "L38",
+   "text": "Notes: (1) check units; (2) label axes; (3) box the final answer.",
+   "holdout": false
+  },
+  {
+   "id": "L39",
+   "text": "Buy milk, eggs, flour & yeast; total ~ $18, tip ± $2 if delivered.",
+   "holdout": false
+  },
+  {
+   "id": "L40",
+   "text": "10 ÷ 4 = 2.5 and 2.5 × 4 = 10; save as draft_2, give or take ± 1.",
+   "holdout": false
+  },
+  {
+   "id": "L41",
+   "text": "I think we should leave early so that we can find a good place to park.",
+   "holdout": false
+  },
+  {
+   "id": "L42",
+   "text": "She said that the meeting had been moved to Thursday at half past two.",
+   "holdout": false
+  },
+  {
+   "id": "L43",
+   "text": "There were only three of them left when I got back from the kitchen.",
+   "holdout": false
+  },
+  {
+   "id": "H04",
+   "text": "Do you think Vera would like the extra pizza, or should I freeze it?",
+   "holdout": true
+  },
+  {
+   "id": "L44",
+   "text": "Would you mind picking up some bread and coffee on your way home tonight?",
+   "holdout": false
+  },
+  {
+   "id": "L45",
+   "text": "After the rain stopped, everyone went outside to look at the huge rainbow.",
+   "holdout": false
+  },
+  {
+   "id": "L46",
+   "text": "Nothing about the old house had changed, except for the bright blue door.",
+   "holdout": false
+  },
+  {
+   "id": "L47",
+   "text": "Could you tell me which bus goes to the university from here, please?",
+   "holdout": false
+  },
+  {
+   "id": "L48",
+   "text": "He promised to call as soon as the results were known, and he did.",
+   "holdout": false
+  },
+  {
+   "id": "L49",
+   "text": "It was the best holiday we ever had, although the weather was awful.",
+   "holdout": false
+  },
+  {
+   "id": "L50",
+   "text": "Most of the students finished the experiment before the bell rang.",
+   "holdout": false
+  },
+  {
+   "id": "L51",
+   "text": "From what I can tell, both answers are correct, but the second is clearer.",
+   "holdout": false
+  },
+  {
+   "id": "L52",
+   "text": "Kindly forward this to Greg, Luke, Olga, Uma, Vince, Lily and Otto.",
+   "holdout": false
+  },
+  {
+   "id": "L53",
+   "text": "Good morning!",
+   "holdout": false
+  },
+  {
+   "id": "L54",
+   "text": "See you next week.",
+   "holdout": false
+  },
+  {
+   "id": "H05",
+   "text": "Write back soon; I'd love to hear how the new job in Zagreb is going!",
+   "holdout": true
+  },
+  {
+   "id": "L55",
+   "text": "Thanks for your help.",
+   "holdout": false
+  },
+  {
+   "id": "L56",
+   "text": "Answer: 42 metres",
+   "holdout": false
+  },
+  {
+   "id": "L57",
+   "text": "x = 12 and y = -7",
+   "holdout": false
+  },
+  {
+   "id": "L58",
+   "text": "Lunch at Vito's on King Lane?",
+   "holdout": false
+  },
+  {
+   "id": "L59",
+   "text": "Room #4, desk #19: ask vera@lab.net",
+   "holdout": false
+  },
+  {
+   "id": "L60",
+   "text": "The capital of France is Paris.",
+   "holdout": false
+  }
+ ]
+}

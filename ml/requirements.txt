@@ -1,0 +1,13 @@
+numpy
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python-headless
+pillow
+transformers
+sentencepiece
+pytest
+protobuf
+scikit-image
+easyocr
+pymupdf
