@@ -101,7 +101,7 @@ export default function Write() {
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} spellCheck={false} />
         <p className="muted small">
           Layout markup: <code>x^2</code> or <code>x^{'{10}'}</code> for exponents, <code>a_{'{n}'}</code> for subscripts,{' '}
-          <code>\frac{'{a}{b}'}</code> for fractions. These are placed by the layout layer, not the model.
+          <code>\frac{'{a}{b}'}</code> for fractions. A line with just <code>---</code> starts a new sheet.
         </p>
         <EnginePicker engine={engine} onChange={setEngine} />
         <SliderPanel sliders={sliders} onChange={setSliders} defaultSize={result?.default_size} />

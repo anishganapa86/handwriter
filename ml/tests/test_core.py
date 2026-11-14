@@ -235,3 +235,14 @@ def test_one_pass_sheets_and_multi_sheet_job():
     single = plotter.build_gcode(sheets[0], pen)[0]
     assert single["pauses"] == 1 and single["sheets"] == 1
     assert plotter.one_pass_margins(plotter.Pen(holder_front=150, offset_y=90, back_stop_y=150), LETTER)[0] is None
+
+
+def test_new_sheet_marker_splits_pages():
+    from hw.layout import split_sheets
+    assert split_sheets("one\n---\ntwo\n  -----  \nthree") == ["one", "two", "three"]
+    assert split_sheets("a - b --- c") == ["a - b --- c"]
+    assert split_sheets("---\nonly\n---") == ["only"]
+    assert split_sheets("") == [""]
+    from hw import plotter
+    cal = plotter.calibration(plotter.Pen(), dry_run=True)[0]["gcode"]
+    assert f"G1 Z{plotter.num(plotter.Pen().z_draw + 5)}" in cal

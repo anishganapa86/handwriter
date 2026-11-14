@@ -107,11 +107,27 @@ export default function Plotter() {
           <button onClick={() => setPen({ ...pen, ...FALU_PENCIL })} title="Clearances from Falu's tested P1S profile; pen offsets still come from the calibration file.">
             Fill in Falu pencil holder values
           </button>
-          <a className="file" href="/api/plot/calibration" download="pen-calibration.gcode.3mf">
-            Download calibration file
-          </a>
           <span className="muted">{note}</span>
         </div>
+        <div className="row">
+          <a className="file" href="/api/plot/calibration?dry=1" download="pen-calibration-dryrun.gcode.3mf">
+            Calibration file (dry run)
+          </a>
+          <a className="file" href="/api/plot/calibration" download="pen-calibration.gcode.3mf">
+            Calibration file (real)
+          </a>
+          <a className="file" href="/api/plot/swap-test?dry=1" download="swap-test-dryrun-2sheets.gcode.3mf">
+            Two-sheet swap test (dry run)
+          </a>
+          <a className="file" href="/api/plot/swap-test" download="swap-test-2sheets.gcode.3mf">
+            Two-sheet swap test (real)
+          </a>
+        </div>
+        <p className="muted small">
+          Swap test: two short lines on each of two sheets, about four minutes. It pauses to fit the pencil, writes sheet 1, parks at the back
+          and pauses for you to swap the paper, then writes sheet 2. Use it to check that the printer really stops between sheets before
+          trusting a long job. Download it again after changing any setting above.
+        </p>
         <p className="muted small">
           Calibration: the file draws a cross with a circle where the pen thinks the middle of the plate is, then parks the nozzle over
           the true middle and pauses. Measure from the nozzle tip to the centre of the cross, left-right and front-back, add those

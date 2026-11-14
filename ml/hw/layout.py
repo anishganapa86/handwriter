@@ -1,4 +1,5 @@
 import math
+import re
 
 import numpy as np
 
@@ -196,15 +197,19 @@ def layout_page(writer, text, sliders=None, seed=None, page=None, labels=None):
     sliders = sliders_with_defaults(sliders)
     page = {**LETTER, **(page or {})}
     width = page["width"] - page["margin_left"] - page["margin_right"]
-    placed = place(generate_words(writer, text, sliders, seed), writer, width, sliders, seed, page["pitch"])
-    per_page = max(1, int((page["height"] - page["margin_top"] - page["margin_bottom"]) / placed["pitch"]))
-    pages = [[] for _ in range(max(1, math.ceil(placed["lines"] / per_page)))]
-    for s in placed["strokes"]:
-        pi = s["line"] // per_page
-        pts = s["points"].copy()
-        pts[:, 0] += page["margin_left"]
-        pts[:, 1] += page["margin_top"] + placed["pitch"] - (pi * per_page) * placed["pitch"]
-        pages[pi].append(pts)
+    pages = []
+    for index, chunk in enumerate(split_sheets(text)):
+        chunk_seed = None if seed is None else seed + index
+        placed = place(generate_words(writer, chunk, sliders, chunk_seed), writer, width, sliders, chunk_seed, page["pitch"])
+        per_page = max(1, int((page["height"] - page["margin_top"] - page["margin_bottom"]) / placed["pitch"]))
+        sheets = [[] for _ in range(max(1, math.ceil(placed["lines"] / per_page)))]
+        for s in placed["strokes"]:
+            pi = s["line"] // per_page
+            pts = s["points"].copy()
+            pts[:, 0] += page["margin_left"]
+            pts[:, 1] += page["margin_top"] + placed["pitch"] - (pi * per_page) * placed["pitch"]
+            sheets[pi].append(pts)
+        pages += sheets
     for label in labels or []:
         opts = {**sliders, "size": label.get("size") or sliders["size"], "jitter": 0.0}
         sub = place(generate_words(writer, label["text"], opts, seed), writer, 1e9, opts, seed)
@@ -215,7 +220,13 @@ def layout_page(writer, text, sliders=None, seed=None, page=None, labels=None):
             pages[min(label.get("page", 0), len(pages) - 1)].append(
                 np.stack([label["x"] + p[:, 0] * ca - p[:, 1] * sa, label["y"] + p[:, 0] * sa + p[:, 1] * ca], axis=1))
     return {"page": page, "pages": [[p.round(3).tolist() for p in pg] for pg in pages],
-            "unsupported": writer.unsupported(strip_markup(text))}
+            "unsupported": writer.unsupported(strip_markup(" ".join(split_sheets(text))))}
+
+
+def split_sheets(text):
+    parts = re.split(r"(?m)^[ \t]*-{3,}[ \t]*$", text)
+    kept = [part.strip("\n") for part in parts if part.strip()]
+    return kept or [""]
 
 
 def strip_markup(text):

@@ -289,12 +289,12 @@ def build_job(sheets, pen, title="page", dry_run=False, after=None):
     return {"gcode": "\n".join(out), "seconds": seconds, "strokes": len(strokes), "pauses": pauses, "sheets": len(sheets)}, []
 
 
-def calibration(pen):
+def calibration(pen, dry_run=False):
     cx = cy = BED / 2
     circle = [[cx + 5 * math.cos(2 * math.pi * k / 72), cy + 5 * math.sin(2 * math.pi * k / 72)] for k in range(73)]
     marks = [np.array([[cx - 15, cy], [cx + 15, cy]]), np.array([[cx, cy - 15], [cx, cy + 15]]), np.array(circle)]
     extra = check_points([[cx + pen.offset_x, cy + pen.offset_y]], pen, "Calibration park")
-    job, problems = build_gcode(marks, pen, "calibration", after=(cx, cy))
+    job, problems = build_gcode(marks, pen, "calibration", dry_run, after=(cx, cy))
     if extra:
         return None, problems + extra
     return job, problems

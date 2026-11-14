@@ -315,12 +315,10 @@ def set_plotter(pen: dict):
     return plotter_info()
 
 
-@app.post("/api/plot")
-def make_plot(req: PlotRequest):
+def plot_job(pages, width, height, title, dry_run):
     pen = plotter.load_pen(PLOTTER)
-    width, height = float(req.page.get("width", LETTER["width"])), float(req.page.get("height", LETTER["height"]))
     steps, problems = [], []
-    for number, paths in enumerate(req.pages or [req.paths], 1):
+    for number, paths in enumerate(pages, 1):
         strokes = [np.asarray(p, dtype=np.float64) for p in paths if len(p)]
         if not strokes:
             continue
@@ -329,14 +327,14 @@ def make_plot(req: PlotRequest):
         for k, part in enumerate(parts):
             steps.append({"page": number, "turned": part["turned"], "same_sheet": k > 0, "strokes": part["strokes"]})
     if problems or not steps:
-        return {"parts": [], "problems": problems or ["Nothing to draw."]}
-    job, issues = plotter.build_job([s["strokes"] for s in steps], pen, req.title, req.dry_run)
+        return None, problems or ["Nothing to draw."]
+    job, issues = plotter.build_job([s["strokes"] for s in steps], pen, title, dry_run)
     if job is None:
-        return {"parts": [], "problems": issues}
-    check = pen if not req.dry_run else plotter.pen_from({**asdict(pen), "z_draw": pen.z_draw + 5, "z_lift": min(pen.z_lift + 5, pen.set_z() - 1)})
+        return None, issues
+    check = pen if not dry_run else plotter.pen_from({**asdict(pen), "z_draw": pen.z_draw + 5, "z_lift": min(pen.z_lift + 5, pen.set_z() - 1)})
     faults, _ = plotter.simulate(job["gcode"], check)
     if faults:
-        return {"parts": [], "problems": [f"The file failed its safety check and was not written: {faults[0]}"]}
+        return None, [f"The file failed its safety check and was not written: {faults[0]}"]
     edge = lambda s: "bottom edge against the back stop (upside down)" if s["turned"] else "top edge against the back stop"
     notes = [f"Pause 1: sheet for page {steps[0]['page']} on the plate, {edge(steps[0])}. Fit the holder, set the pencil on the 10 mm block, press Resume."]
     for i, s in enumerate(steps[1:], 2):
@@ -345,24 +343,51 @@ def make_plot(req: PlotRequest):
         else:
             notes.append(f"Pause {i}: take the finished sheet off and put on a new one for page {s['page']}, {edge(s)}. Press Resume.")
     sheets = len({s["page"] for s in steps})
-    stem = re.sub(r"[^A-Za-z0-9_-]+", "-", req.title).strip("-")[:40] or "page"
-    name = f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}{'-dryrun' if req.dry_run else ''}-{sheets}sheet{'s' if sheets > 1 else ''}.gcode.3mf"
+    stem = re.sub(r"[^A-Za-z0-9_-]+", "-", title).strip("-")[:40] or "page"
+    name = f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}{'-dryrun' if dry_run else ''}-{sheets}sheet{'s' if sheets > 1 else ''}.gcode.3mf"
     (DATA / "plots").mkdir(exist_ok=True)
-    (DATA / "plots" / name).write_bytes(plotter.package(job, [st for s in steps for st in s["strokes"]], req.title))
-    return {"parts": [{"name": name, "url": f"/files/plots/{name}", "turned": False, "strokes": job["strokes"], "sheets": sheets,
-                       "flips": sum(1 for s in steps if s["same_sheet"]), "minutes": int(round(job["seconds"] / 60)), "steps": notes}],
-            "problems": []}
+    (DATA / "plots" / name).write_bytes(plotter.package(job, [st for s in steps for st in s["strokes"]], title))
+    return {"name": name, "url": f"/files/plots/{name}", "turned": False, "strokes": job["strokes"], "sheets": sheets,
+            "flips": sum(1 for s in steps if s["same_sheet"]), "minutes": int(round(job["seconds"] / 60)), "steps": notes}, []
+
+
+@app.post("/api/plot")
+def make_plot(req: PlotRequest):
+    width, height = float(req.page.get("width", LETTER["width"])), float(req.page.get("height", LETTER["height"]))
+    part, problems = plot_job(req.pages or [req.paths], width, height, req.title, req.dry_run)
+    return {"parts": [part] if part else [], "problems": problems}
+
+
+SWAP_TEST = "Sheet 1 of 2\nSwap test, first sheet.\n---\nSheet 2 of 2\nSwap test, second sheet."
+
+
+@app.get("/api/plot/swap-test")
+def plot_swap_test(dry: int = 0):
+    page = dict(LETTER)
+    margins, _ = plotter.one_pass_margins(plotter.load_pen(PLOTTER), page)
+    if margins is None:
+        raise HTTPException(409, "The pencil cannot reach enough of a sheet with these settings.")
+    page.update(margins)
+    w = writer("glyphs")
+    w.use_words = False
+    out = layout_page(w, SWAP_TEST, {"jitter": 0.0}, 3, page)
+    part, problems = plot_job(out["pages"], page["width"], page["height"], "swap-test", bool(dry))
+    if part is None:
+        raise HTTPException(409, " ".join(problems))
+    return FileResponse(DATA / "plots" / part["name"], media_type="application/octet-stream", filename=part["name"],
+                        headers={"X-Plot-Minutes": str(part["minutes"]), "X-Plot-Sheets": str(part["sheets"])})
 
 
 @app.get("/api/plot/calibration")
-def plot_calibration():
+def plot_calibration(dry: int = 0):
     pen = plotter.load_pen(PLOTTER)
-    job, problems = plotter.calibration(pen)
+    job, problems = plotter.calibration(pen, bool(dry))
     if job is None:
         raise HTTPException(409, " ".join(problems))
-    path = DATA / "plots" / "pen-calibration.gcode.3mf"
+    name = f"pen-calibration{'-dryrun' if dry else ''}.gcode.3mf"
+    path = DATA / "plots" / name
     path.write_bytes(plotter.package(job, [], "calibration"))
-    return FileResponse(path, media_type="application/octet-stream", filename="pen-calibration.gcode.3mf")
+    return FileResponse(path, media_type="application/octet-stream", filename=name)
 
 
 @app.post("/api/copy")
