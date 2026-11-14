@@ -17,6 +17,8 @@ runs the whole chain on a letter-size page of text that was never in the source 
 3. the page is redrawn from nothing but the G-code and compared with the original, as proof that the files say what the page says (`4_read_back_from_gcode.png`, worst deviation 0.07 mm);
 4. the pencil guide is seated in Falu's head mount with his spring module and a pencil and checked for collisions (`5_pencil_holder.png`).
 
+`python demo/make_video.py` renders the same chain as a one-minute video, `demo/out/demo.mp4`: the text being typed, the page being written stroke by stroke, both passes drawn on the plate from the G-code with the pencil position, the read-back comparison and the holder. It is a simulation, not footage of the printer.
+
 The script exits with an error if a character has no sample, a file fails the safety check, or the read-back drifts more than 0.2 mm. `report.json` holds the numbers.
 
 ![The demo page](demo/out/1_page.png)

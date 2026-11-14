@@ -13,3 +13,4 @@ easyocr
 pymupdf
 manifold3d
 trimesh
+imageio-ffmpeg

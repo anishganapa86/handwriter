@@ -175,12 +175,14 @@ def page_html(report, images):
                "</ul></section>")
     limits = ("<section><h2>What this demo does not show</h2><p>Nothing here has run on a real printer: the files pass a simulated safety check only, "
               "the pen offsets are uncalibrated (0, 0) and the holder has not been printed.</p></section>")
+    video = ('<section><h2>The video</h2><video src="demo.mp4" controls style="width:100%;border:1px solid #d9dee7;border-radius:6px"></video></section>'
+             if (OUT / "demo.mp4").exists() else "")
     style = ("body{font:16px/1.5 system-ui,sans-serif;max-width:900px;margin:0 auto;padding:24px 16px;color:#14213d;background:#fafbfd}"
              "h1{margin:0 0 4px}h2{margin:32px 0 8px;font-size:20px}img{max-width:100%;border:1px solid #d9dee7;border-radius:6px;background:#fff}"
              "pre{white-space:pre-wrap;background:#f3f5f9;padding:12px;border-radius:8px;font-size:13px}code{background:#f3f5f9;padding:1px 4px;border-radius:4px}")
     return (f"<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>Handwriter demo</title><style>{style}</style></head><body><h1>Handwriter, end to end</h1>"
-            f"<p>Made by <code>python demo/run_demo.py</code> on {report['made']}.</p>{body}{limits}{credits}</body></html>")
+            f"<p>Made by <code>python demo/run_demo.py</code> on {report['made']}.</p>{video}{body}{limits}{credits}</body></html>")
 
 
 def main():
