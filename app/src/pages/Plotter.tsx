@@ -5,9 +5,9 @@ import type { PenProfile, PlotterInfo } from '../lib/api'
 const FALU_PENCIL: Partial<PenProfile> = {
   holder_front: 50,
   holder_left: 43,
-  tip_depth: 17,
-  z_draw: 15.5,
-  z_lift: 20,
+  tip_depth: 24,
+  z_draw: 22.5,
+  z_lift: 27,
   draw_speed: 1200,
 }
 

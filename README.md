@@ -17,7 +17,7 @@ runs the whole chain on a letter-size page of text that was never in the source 
 3. the page is redrawn from nothing but the G-code and compared with the original, as proof that the files say what the page says (`4_read_back_from_gcode.png`, worst deviation 0.07 mm);
 4. the pencil guide is seated in Falu's head mount with his spring module and a pencil and checked for collisions (`5_pencil_holder.png`).
 
-`python demo/make_video.py` renders the same chain as a one-minute video, `demo/out/demo.mp4`: the text being typed, the page being written stroke by stroke, both passes drawn on the plate from the G-code with the pencil position, the read-back comparison and the holder. It is a simulation, not footage of the printer.
+`python demo/make_video.py` renders the same chain as a 95-second video, `demo/out/demo.mp4`: the text being typed, the page being written stroke by stroke, then a simplified 3D model of the P1S (`demo/printer_scene.py`) seen from outside and inside while it is driven by the real plotter files: homing pause, fitting the holder and pencil on the 10 mm block, both passes with the paper turned in between, then the read-back comparison and the holder. It is a simulation, not footage of the printer; the printer model is hand-built from boxes, Falu's mount and spring module are his real files, and where the pencil sits relative to the nozzle (32 mm left, 36 mm in front) is estimated from the shape of his mount until it is calibrated.
 
 The script exits with an error if a character has no sample, a file fails the safety check, or the read-back drifts more than 0.2 mm. `report.json` holds the numbers.
 
@@ -143,7 +143,7 @@ The pencil rides in Falu's Universal Modular Tool System for the P1S ([MakerWorl
 3. Print the guide standing upright, 0.2 mm layers, no supports. Print Falu's `Head-Mount-V1-Series X and Series P.stl` and the spring module the script names, as Falu describes.
 4. A 0.7 mm mechanical pencil keeps a constant line; a wooden pencil wears blunt within a page. The pencil must stick out of the guide by more than the spring travel (5 mm) plus 2 mm, so the guide never touches the paper.
 
-On the Plotter tab, "Fill in Falu pencil holder values" sets the clearances from Falu's tested P1S profile: the head stays 55 mm from the front and 48 mm from the left (his excluded area), the pencil tip is set 17 mm below the nozzle, it draws 1.5 mm into the spring and lifts 3 mm. The pen offsets still have to be measured with the calibration file. The holder goes on at the pause after homing, never before. The pencil and spring module stand well above the toolhead, so lift off the P1S top glass before plotting.
+On the Plotter tab, "Fill in Falu pencil holder values" sets the clearances from Falu's tested P1S profile: the head stays 55 mm from the front and 48 mm from the left (his excluded area), the pencil tip is set 24 mm below the nozzle, it draws 1.5 mm into the spring and lifts 3 mm. The 24 mm comes from Falu's own Z offset of 17 mm with the pen tip barely out of the guide, which puts the bottom of the guide and mount about 16.5 mm below the nozzle; the pencil sticks out 7.5 mm below that, so the guide stays about 6 mm above the paper while writing. The pen offsets still have to be measured with the calibration file. The holder goes on at the pause after homing, never before. The pencil and spring module stand well above the toolhead, so lift off the P1S top glass before plotting.
 
 ## Phase 2 design (original Klipper plan, superseded for the P1S)
 

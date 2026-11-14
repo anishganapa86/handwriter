@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import printer_scene as ps
 import run_demo as demo
 from hw import plotter
 from hw.glyphs import GlyphWriter
@@ -126,7 +127,7 @@ def title_card(out):
     f = blank()
     write(f, (90, 210), "Handwriter", 84, "bold")
     write(f, (94, 330), "Type anything. It is written in your own handwriting, then turned into a job for a Bambu Lab P1S holding a pencil.", 30, width=1050)
-    write(f, (94, 470), "Every frame of this video is drawn by demo/make_video.py from the real pipeline. Nothing has run on a real printer yet.", 22, colour=MUTED, width=1050)
+    write(f, (94, 470), "Every frame is drawn by demo/make_video.py from the real pipeline. The printer is a simplified 3D model moved by the real plotter file. Nothing has run on a real printer yet.", 22, colour=MUTED, width=1050)
     out.add(f, 3.5)
 
 
@@ -160,57 +161,100 @@ def typing_and_writing(out, strokes, page):
     out.add(typed, 0.7)
     canvas = typed.copy()
     scaled = [np.asarray(s) * k + [px, py] for s in strokes]
-    for _ in trace(canvas, scaled, int(15 * FPS)):
+    for _ in trace(canvas, scaled, int(10 * FPS)):
         out.add(canvas)
     write(canvas, (40, 682), f"{len(strokes)} pen strokes. None of these sentences were in the source pages.", 18, colour=MUTED)
     out.add(canvas, 2.0)
 
 
-def plate(out, parts, jobs, pen, page, left):
-    k = 2.3
-    ox, oy = 30, 14
-    at = lambda p: np.stack([ox + (np.asarray(p)[..., 0] + 6) * k, oy + (plotter.BED + 6 - np.asarray(p)[..., 1]) * k], axis=-1)
-    back = pen.back_stop_y
-    corner = lambda x, y: tuple(int(v) for v in at([x, y]))
-    done_before = []
-    for i, (part, job) in enumerate(zip(parts, jobs), 1):
-        base = blank()
-        cv2.rectangle(base, corner(0, plotter.BED), corner(plotter.BED, 0), (205, 205, 205), -1)
-        cv2.rectangle(base, corner(0, plotter.BED), corner(plotter.BED, 0), (120, 120, 120), 1)
-        cv2.rectangle(base, corner(left, back), corner(left + page["width"], back - page["height"]), (252, 250, 243), -1)
-        cv2.rectangle(base, corner(left, back), corner(left + page["width"], back - page["height"]), (150, 150, 150), 1)
-        x0, y0, x1, y1 = pen.reach()
-        cv2.rectangle(base, corner(x0, y1), corner(x1, y0), (60, 140, 60), 1)
-        for s in done_before:
-            turned = np.stack([2 * left + page["width"] - s[:, 0], 2 * back - page["height"] - s[:, 1]], axis=1)
-            cv2.polylines(base, [sub16(at(turned))], False, (170, 165, 160), 1, cv2.LINE_AA, 4)
-        tx = 760
-        y = write(base, (tx, 28), "3. On the P1S plate", 30, "bold")
-        y = write(base, (tx, y + 8), f"Pass {i} of {len(parts)}: " + ("paper turned upside down against the same back stop" if part["turned"] else "paper the right way up"), 22, "bold", ACCENT, width=480)
-        facts = [f"{job['strokes']} strokes, about {int(round(job['seconds'] / 60))} minutes",
-                 f"{len(job['gcode'].splitlines()):,} lines of G-code in a .gcode.3mf for Bambu Studio",
-                 "Heaters off, nothing extruded",
-                 "Homes first, then pauses for the holder and pencil",
-                 "Pencil lifts between strokes; dots get a short dwell",
-                 f"Safety simulation: {'passed' if not job['faults'] else job['faults'][0]}"]
-        for fact in facts:
-            y = write(base, (tx, y + 10), "•  " + fact, 20, width=470)
-        write(base, (tx, 560), "Grey square: the 256 mm plate. A letter page is longer, so it overhangs the front. Green box: where the pencil may go with this holder. Blue lines: moves with the pencil lifted.", 17, colour=MUTED, width=470)
-        write(base, (tx, 668), "Simulated from the G-code. Pen offsets are not calibrated yet.", 17, colour=MUTED, width=470)
-        drawn = [at(s) for s in demo.read_back(job["gcode"], pen)]
-        canvas = base.copy()
-        seconds = 6 + 6 * len(drawn) / max(sum(len(demo.read_back(j["gcode"], pen)) for j in jobs), 1)
-        for tip in trace(canvas, drawn, int(seconds * FPS), travel=(235, 200, 160)):
-            f = canvas.copy()
-            cv2.circle(f, tuple(sub16(tip)), 90, (40, 40, 220), -1, cv2.LINE_AA, 4)
-            out.add(f)
-        out.add(canvas, 1.2)
-        done_before += [np.asarray(s) for s in part["strokes"]]
-        if i < len(parts):
-            card = blank()
-            write(card, (90, 270), "Turn the paper upside down", 60, "bold")
-            write(card, (94, 370), "Same back stop, same tape marks. The second file writes the rest of the page from the other end.", 28, width=1050)
-            out.add(card, 2.5)
+def caption(frame, text, speed=None):
+    band = frame[640:704, 24:1256].astype(np.float32)
+    frame[640:704, 24:1256] = (band * 0.14 + 255 * 0.86).astype(np.uint8)
+    write(frame, (44, 656), text, 22, "bold", width=950)
+    write(frame, (1010, 646), "3D simulation from the G-code", 15, colour=MUTED)
+    if speed:
+        write(frame, (1010, 668), f"{speed:.0f}x speed" if speed >= 1.5 else "real time", 20, "bold", ACCENT)
+    return frame
+
+
+def state_at(rows, t):
+    i = int(np.clip(np.searchsorted(rows[:, 0], t), 1, len(rows) - 1))
+    t0, t1 = rows[i - 1, 0], rows[i, 0]
+    f = 0.0 if t1 <= t0 else float(np.clip((t - t0) / (t1 - t0), 0, 1))
+    return rows[i - 1, 1:] + (rows[i, 1:] - rows[i - 1, 1:]) * f
+
+
+def printer_sequence(out, parts, jobs, pen, page):
+    p = ps.Printer(pen, page, (W, H))
+    s = p.state
+    cx, cy = plotter.clip_xy(pen)
+    fit_tip = (cx + pen.offset_x, cy + pen.offset_y)
+
+    def hold(seconds, view, text, door=False, moves=None):
+        n = max(1, int(seconds * FPS))
+        for i in range(n):
+            f = ps.ease((i + 1) / n)
+            for key, (a, b) in (moves or {}).items():
+                s[key] = a + (b - a) * f
+            p.show("door", door)
+            p.look(*ps.shot(view, p, (i + 1) / n, fit_tip if view == "fit" else None))
+            out.add(caption(p.frame(), text))
+
+    def plot(job, turned, plan):
+        rows, ink = ps.timeline(job["gcode"], pen)
+        done, follow = 0, None
+        for seconds, t0, t1, view, text in plan:
+            t0, t1 = t0 * rows[-1, 0] if t0 <= 1 else t0, t1 * rows[-1, 0] if t1 <= 1 else t1
+            n = int(seconds * FPS)
+            for i in range(n):
+                now = t0 + (t1 - t0) * (i + 1) / n
+                k = int(np.searchsorted(ink[:, 0], now, side="right"))
+                if k > done:
+                    p.ink(ink[done:k], turned)
+                    p.refresh_paper()
+                    done = k
+                s["x"], s["y"], s["z"] = state_at(rows, now)
+                tip = np.array([s["x"] + pen.offset_x, s["y"] + pen.offset_y])
+                follow = tip if follow is None or view != "close" else follow + (tip - follow) * 0.08
+                p.show("door", view == "outside")
+                p.look(*ps.shot(view, p, (i + 1) / n, follow if view == "close" else None))
+                out.add(caption(p.frame(), text, (t1 - t0) / seconds))
+        if done < len(ink):
+            p.ink(ink[done:], turned)
+            p.refresh_paper()
+
+    park = plotter.park_xy(pen)
+    s.update(x=park[0], y=park[1], z=pen.set_z())
+    hold(4.0, "outside", "Simplified model of the Bambu Lab P1S. Top glass off, paper taped down, heaters off.", door=True)
+    hold(1.4, "fit", "The printer homes with nothing fitted, comes to the front and pauses.", moves={"x": (park[0], cx), "y": (park[1], cy)})
+    p.show("tool", True)
+    hold(1.8, "fit", "Clip on Falu's head mount with the pencil guide and spring module.")
+    p.show("pencil", True)
+    p.show("block", True)
+    hold(1.4, "fit", "Rest the pencil tip on a 10 mm block and tighten it.", moves={"pencil_up": (70.0, 0.0)})
+    hold(0.8, "fit", "Rest the pencil tip on a 10 mm block and tighten it.")
+    p.show("block", False)
+    s["fitted"] = True
+    hold(1.2, "fit", "Take the block away and press Resume.", moves={"z": (pen.set_z(), pen.z_lift)})
+    first = "Pass 1 of 2: the bed drops to lift the pencil between strokes." if len(parts) > 1 else "The bed drops to lift the pencil between strokes."
+    plot(jobs[0], parts[0]["turned"], [
+        (8.0, 0.0, 26.0, "close", first),
+        (8.0, 26.0, 0.55, "inside", f"Inside, door open for the camera: {jobs[0]['strokes']} strokes, about {int(round(jobs[0]['seconds'] / 60))} minutes in real life."),
+        (7.0, 0.55, 1.0, "outside", "From outside, through the door glass."),
+    ])
+    if len(parts) > 1:
+        hold(1.0, "top", "Pass 1 done. The bed lowers and the head parks at the back.", moves={"x": (s["x"], park[0]), "y": (s["y"], park[1]), "z": (s["z"], pen.z_lift + plotter.END_LIFT)})
+        hold(0.5, "top", "Turn the paper upside down against the same marks.", moves={"paper_lift": (0.0, 14.0)})
+        hold(1.6, "top", "Turn the paper upside down against the same marks.", moves={"turn": (0.0, 180.0)})
+        hold(0.5, "top", "Turn the paper upside down against the same marks.", moves={"paper_lift": (14.0, 0.0)})
+        plot(jobs[1], parts[1]["turned"], [
+            (5.0, 0.0, 18.0, "close", "Pass 2 of 2 writes the rest of the page from the other end."),
+            (5.0, 18.0, 0.5, "side", f"Pass 2: {jobs[1]['strokes']} strokes, about {int(round(jobs[1]['seconds'] / 60))} minutes in real life."),
+            (5.0, 0.5, 1.0, "top", "From above, through the open top."),
+        ])
+    hold(1.2, "top", "Done: the bed lowers and the head parks.", moves={"x": (s["x"], park[0]), "y": (s["y"], park[1]), "z": (s["z"], pen.z_lift + plotter.END_LIFT)})
+    hold(3.5, "outside", "The finished page. This is a simulation: nothing has run on the real printer yet.", door=True)
+    p.pl.close()
 
 
 def read_back_scene(out, strokes, rebuilt, page, worst):
@@ -266,7 +310,7 @@ def main():
     result = layout_page(writer, demo.TEXT, {"neatness": 0.6, "jitter": 0.3}, seed=7)
     page = result["page"]
     strokes = [np.asarray(s, dtype=np.float64) for s in result["pages"][0]]
-    pen = plotter.pen_from({**asdict(plotter.Pen()), **demo.FALU_PENCIL})
+    pen = plotter.pen_from({**asdict(plotter.Pen()), **demo.FALU_PENCIL, **demo.ESTIMATED_PLACING})
     left = plotter.paper_left(pen, page["width"])
     parts, problems = plotter.place_page(strokes, page["width"], page["height"], pen)
     if problems:
@@ -283,7 +327,7 @@ def main():
     out = Encoder(path)
     title_card(out)
     typing_and_writing(out, strokes, page)
-    plate(out, parts, jobs, pen, page, left)
+    printer_sequence(out, parts, jobs, pen, page)
     read_back_scene(out, strokes, rebuilt, page, demo.worst_gap(strokes, rebuilt))
     holder_scene(out)
     end_card(out)

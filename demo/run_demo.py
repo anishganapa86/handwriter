@@ -34,7 +34,8 @@ For the weekend: fix the gate latch, plant the beans in rows 30 cm apart, and wr
 
 None of these sentences were in the pages the letters came from. Every word here is put together from single letters and joined pairs, then spaced, slanted and wobbled the way the measured habits say."""
 
-FALU_PENCIL = dict(holder_front=50, holder_left=43, tip_depth=17, z_draw=15.5, z_lift=20, draw_speed=1200)
+FALU_PENCIL = dict(holder_front=50, holder_left=43, tip_depth=24, z_draw=22.5, z_lift=27, draw_speed=1200)
+ESTIMATED_PLACING = dict(offset_x=-32, offset_y=-36, back_stop_y=240)
 INK = (70, 62, 58)
 
 
