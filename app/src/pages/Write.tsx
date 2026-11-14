@@ -24,6 +24,7 @@ export default function Write() {
   const [error, setError] = useState('')
   const [speed, setSpeed] = useState(600)
   const [engine, setEngine] = useState<Engine>('model')
+  const [onePass, setOnePass] = useState(true)
   const anim = useRef({ drawn: 0, raf: 0, last: 0, playing: false })
 
   const paint = useCallback(
@@ -73,7 +74,7 @@ export default function Write() {
     setBusy(true)
     setError('')
     try {
-      const out = await api.generate(text, sliders, nextSeed, labels, engine)
+      const out = await api.generate(text, sliders, nextSeed, labels, engine, onePass)
       setPageIndex(0)
       setResult(out)
     } catch (e) {
@@ -104,6 +105,9 @@ export default function Write() {
         </p>
         <EnginePicker engine={engine} onChange={setEngine} />
         <SliderPanel sliders={sliders} onChange={setSliders} defaultSize={result?.default_size} />
+        <label className="check" title="Keeps the writing on each sheet inside what the pencil can reach in one go, so no sheet has to be turned. Longer text runs on to more sheets.">
+          <input type="checkbox" checked={onePass} onChange={(e) => setOnePass(e.target.checked)} /> Fit each sheet to one plotter pass (no turning)
+        </label>
         <div className="row">
           <button className="primary" onClick={() => void generate()} disabled={busy}>
             {busy ? 'Writing…' : 'Write it'}
@@ -148,6 +152,7 @@ export default function Write() {
         {result && (
           <p className="muted small">
             Written with: {result.checkpoint}
+            {result.one_pass && ` · ${result.one_pass.lines} lines per sheet, ${result.pages.length} sheet${result.pages.length > 1 ? 's' : ''}`}
             {result.pages.length > 1 && (
               <>
                 {' · '}
@@ -167,7 +172,7 @@ export default function Write() {
           </p>
         )}
         {error && <p className="warn">{error}</p>}
-        {result && <PlotExport paths={result.pages[pageIndex] ?? []} page={result.page} title={`page-${pageIndex + 1}`} />}
+        {result && <PlotExport pages={result.pages} current={pageIndex} page={result.page} title="pages" />}
       </div>
       <canvas ref={canvasRef} className={placing ? 'sheet placing' : 'sheet'} onClick={onCanvasClick} />
     </div>

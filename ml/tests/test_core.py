@@ -205,3 +205,33 @@ def test_plotter_side_holder_keeps_clear():
     bad, why = plotter.build_gcode([np.array([[5.0, 150.0], [12.0, 150.0]])], pen)
     assert bad is None and any("left side" in w for w in why)
     assert plotter.Pen(tip_depth=17, z_draw=18, z_lift=20).problems()
+
+
+def test_one_pass_sheets_and_multi_sheet_job():
+    from hw import plotter
+    from hw.layout import LETTER
+    pen = plotter.Pen(offset_x=-32, offset_y=-36, holder_front=50, holder_left=43, tip_depth=24, z_draw=22.5, z_lift=27, back_stop_y=240)
+    margins, lines = plotter.one_pass_margins(pen, LETTER)
+    assert margins and 15 <= lines < 29 and margins["margin_bottom"] > LETTER["margin_bottom"]
+    page = {**LETTER, **margins}
+    top, bottom = page["margin_top"] + 1.5, page["height"] - page["margin_bottom"] + 3.5
+    sheets = []
+    for n in range(3):
+        strokes = [np.array([[x, y], [x + 4.0, y - 2.0]]) for y in np.linspace(top + 2.0, bottom, 12)
+                   for x in np.linspace(page["margin_left"], page["width"] - page["margin_right"] - 4.0, 9 + n)]
+        parts, problems = plotter.place_page(strokes, page["width"], page["height"], pen)
+        assert not problems and len(parts) == 1 and parts[0]["turned"] is False
+        sheets.append(parts[0]["strokes"])
+    job, issues = plotter.build_job(sheets, pen, "three sheets")
+    assert not issues and job["sheets"] == 3 and job["pauses"] == 3
+    code = job["gcode"]
+    assert plotter.simulate(code, pen)[0] == []
+    assert code.count("M400 U1") == 3 and code.count("G28") == 1 and code.count("; PEN_FITTED") == 1
+    lines_out = code.splitlines()
+    swap = lines_out.index("; SHEET 2")
+    before = [l for l in lines_out[swap - 14:swap] if l.startswith("G0")]
+    assert before[-2].startswith(f"G0 Z{plotter.num(pen.z_lift + plotter.END_LIFT)}") and before[-1].startswith("G0 X128 Y")
+    assert lines_out[swap + 1].startswith(f"G0 Z{plotter.num(pen.z_lift)}")
+    single = plotter.build_gcode(sheets[0], pen)[0]
+    assert single["pauses"] == 1 and single["sheets"] == 1
+    assert plotter.one_pass_margins(plotter.Pen(holder_front=150, offset_y=90, back_stop_y=150), LETTER)[0] is None

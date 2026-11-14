@@ -194,9 +194,31 @@ def pause(count):
             "M400", "M400 U1", "M104 S0", "M140 S0"]
 
 
+def one_pass_margins(pen, page, descender=4.0):
+    x0, y0, x1, y1 = pen.reach()
+    left = paper_left(pen, page["width"])
+    out = {
+        "margin_top": max(page["margin_top"], pen.back_stop_y - y1 + 1.0),
+        "margin_bottom": max(page["margin_bottom"], page["height"] - (pen.back_stop_y - y0) + descender),
+        "margin_left": max(page["margin_left"], x0 - left + 2.0),
+        "margin_right": max(page["margin_right"], page["width"] - (x1 - left) + 2.0),
+    }
+    lines = int((page["height"] - out["margin_top"] - out["margin_bottom"]) / page["pitch"])
+    width = page["width"] - out["margin_left"] - out["margin_right"]
+    if lines < 3 or width < 60:
+        return None, 0
+    return {k: round(v, 1) for k, v in out.items()}, lines
+
+
 def build_gcode(strokes, pen, title="page", dry_run=False, after=None):
+    return build_job([strokes], pen, title, dry_run, after)
+
+
+def build_job(sheets, pen, title="page", dry_run=False, after=None):
     problems = pen.problems()
-    strokes = [thin(s) for s in strokes if len(s)]
+    sheets = [[thin(s) for s in sheet if len(s)] for sheet in sheets]
+    sheets = [sheet for sheet in sheets if sheet]
+    strokes = [s for sheet in sheets for s in sheet]
     if not strokes:
         problems.append("Nothing to draw.")
     else:
@@ -212,52 +234,59 @@ def build_gcode(strokes, pen, title="page", dry_run=False, after=None):
     z_lift = min(pen.z_lift + raise_by, pen.set_z() - 1.0)
     if z_lift <= z_draw:
         z_lift = z_draw + 1.0
+    z_swap = z_lift + END_LIFT
     length = sum(float(np.linalg.norm(np.diff(s, axis=0), axis=1).sum()) for s in strokes)
     travel, cursor = 0.0, np.array([cx + pen.offset_x, cy + pen.offset_y])
     for s in strokes:
         travel += float(np.linalg.norm(s[0] - cursor))
         cursor = s[-1]
     lifts = len(strokes)
+    swaps = len(sheets) - 1
     seconds = 90 + length / pen.draw_speed * 60 + travel / pen.travel_speed * 60 + lifts * 2 * (z_lift - z_draw) / pen.z_speed * 60 \
-        + sum(1 for s in strokes if len(s) == 1) * pen.dot_dwell_ms / 1000
+        + sum(1 for s in strokes if len(s) == 1) * pen.dot_dwell_ms / 1000 + swaps * (2 * END_LIFT / pen.z_speed * 60 + 6)
     minutes, rest = divmod(int(round(seconds)), 60)
-    pauses = 1 + (1 if after else 0)
+    pauses = 1 + swaps + (1 if after else 0)
     out = ["; HEADER_BLOCK_START", f"; BambuStudio {BAMBU_VERSION}",
            f"; model printing time: {minutes}m {rest}s; total estimated time: {minutes}m {rest}s",
            f"; total layer number: {pauses}", "; total filament length [mm] : 0.00", "; total filament volume [cm^3] : 0.00",
-           "; total filament weight [g] : 0.00", f"; max_z_height: {pen.set_z():.2f}", "; HEADER_BLOCK_END", "",
+           "; total filament weight [g] : 0.00", f"; max_z_height: {max(pen.set_z(), z_swap):.2f}", "; HEADER_BLOCK_END", "",
            f"; pen plot: {title}", "; EXECUTABLE_BLOCK_START",
            "G21", "G90", "M104 S0", "M140 S0", "M73 P0", "G28", "M104 S0", "M140 S0",
            "M1002 gcode_claim_action : 0", "; MACHINE_START_GCODE_END", f"M204 S{num(pen.accel)}",
            f"G0 Z{num(pen.set_z())} F{num(pen.z_speed)}", f"G0 X{num(cx)} Y{num(cy)} F{num(pen.travel_speed)}",
            *pause(1), "; PEN_FITTED", f"G0 Z{num(z_lift)} F{num(pen.z_speed)}"]
-    done, last_pct, up, cursor = 0.0, 0, True, None
-    for s in strokes:
-        nozzle = s - [pen.offset_x, pen.offset_y]
-        joined = cursor is not None and not up and float(np.linalg.norm(s[0] - cursor)) < 0.12
-        if not joined:
-            if not up:
-                out.append(f"G0 Z{num(z_lift)} F{num(pen.z_speed)}")
-            out.append(f"G0 X{num(nozzle[0, 0])} Y{num(nozzle[0, 1])} F{num(pen.travel_speed)}")
-            out.append(f"G1 Z{num(z_draw)} F{num(pen.z_speed)}")
-        if len(s) == 1:
-            out.append(f"G4 P{num(pen.dot_dwell_ms)}")
-        for k, p in enumerate(nozzle[1:]):
-            out.append(f"G1 X{num(p[0])} Y{num(p[1])}" + (f" F{num(pen.draw_speed)}" if k == 0 else ""))
-        up, cursor = False, s[-1]
-        done += float(np.linalg.norm(np.diff(s, axis=0), axis=1).sum())
-        pct = min(99, int(100 * done / max(length, 1e-6)))
-        if pct != last_pct:
-            out.append(f"M73 P{pct} R{math.ceil(seconds * (1 - done / max(length, 1e-6)) / 60)}")
-            last_pct = pct
-    out.append(f"G0 Z{num(z_lift)} F{num(pen.z_speed)}")
+    done, last_pct = 0.0, 0
+    for index, sheet in enumerate(sheets):
+        if index:
+            out += [f"G0 Z{num(z_swap)} F{num(pen.z_speed)}", f"G0 X{num(park[0])} Y{num(park[1])} F{num(pen.travel_speed)}",
+                    *pause(index + 1), f"; SHEET {index + 1}", f"G0 Z{num(z_lift)} F{num(pen.z_speed)}"]
+        up, cursor = True, None
+        for s in sheet:
+            nozzle = s - [pen.offset_x, pen.offset_y]
+            joined = cursor is not None and not up and float(np.linalg.norm(s[0] - cursor)) < 0.12
+            if not joined:
+                if not up:
+                    out.append(f"G0 Z{num(z_lift)} F{num(pen.z_speed)}")
+                out.append(f"G0 X{num(nozzle[0, 0])} Y{num(nozzle[0, 1])} F{num(pen.travel_speed)}")
+                out.append(f"G1 Z{num(z_draw)} F{num(pen.z_speed)}")
+            if len(s) == 1:
+                out.append(f"G4 P{num(pen.dot_dwell_ms)}")
+            for k, q in enumerate(nozzle[1:]):
+                out.append(f"G1 X{num(q[0])} Y{num(q[1])}" + (f" F{num(pen.draw_speed)}" if k == 0 else ""))
+            up, cursor = False, s[-1]
+            done += float(np.linalg.norm(np.diff(s, axis=0), axis=1).sum())
+            pct = min(99, int(100 * done / max(length, 1e-6)))
+            if pct != last_pct:
+                out.append(f"M73 P{pct} R{math.ceil(seconds * (1 - done / max(length, 1e-6)) / 60)}")
+                last_pct = pct
+        out.append(f"G0 Z{num(z_lift)} F{num(pen.z_speed)}")
     if after:
         out.append(f"G0 X{num(after[0])} Y{num(after[1])} F{num(pen.travel_speed)}")
-        out += pause(2)
-    out += ["M104 S0", "M140 S0", f"G0 Z{num(z_lift + END_LIFT)} F{num(pen.z_speed)}",
+        out += pause(pauses)
+    out += ["M104 S0", "M140 S0", f"G0 Z{num(z_swap)} F{num(pen.z_speed)}",
             f"G0 X{num(park[0])} Y{num(park[1])} F{num(pen.travel_speed)}", "M73 P100 R0", "M400", "M18",
             "; EXECUTABLE_BLOCK_END", ""]
-    return {"gcode": "\n".join(out), "seconds": seconds, "strokes": len(strokes), "pauses": pauses}, []
+    return {"gcode": "\n".join(out), "seconds": seconds, "strokes": len(strokes), "pauses": pauses, "sheets": len(sheets)}, []
 
 
 def calibration(pen):

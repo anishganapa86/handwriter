@@ -28,6 +28,7 @@ export type PageResult = {
   unsupported: string[]
   checkpoint: string
   default_size: number
+  one_pass?: { lines: number } | null
 }
 
 export type PenProfile = {
@@ -47,7 +48,7 @@ export type PenProfile = {
   calibrated: number
 }
 export type PlotterInfo = { pen: PenProfile; reach: number[]; paper_left: number; summary: string; problems: string[] }
-export type PlotPart = { name: string; url: string; turned: boolean; strokes: number; minutes: number }
+export type PlotPart = { name: string; url: string; turned: boolean; strokes: number; minutes: number; sheets: number; flips: number; steps: string[] }
 
 export type Box = { x: number; y: number; w: number; h: number; kind: string; text?: string; size?: number }
 
@@ -83,12 +84,12 @@ export const api = {
     post<{ saved: number; retraining: boolean }>(`/api/sessions?final=${final ? 1 : 0}`, session),
   loadSession: (id: string) => json<unknown>(`/files/sessions/${id}.json`),
   train: () => post<{ started: boolean }>('/api/train', {}),
-  generate: (text: string, sliders: Sliders, seed: number, labels: unknown[], engine: Engine) =>
-    post<PageResult>('/api/generate', { text, sliders, seed, labels, engine }),
+  generate: (text: string, sliders: Sliders, seed: number, labels: unknown[], engine: Engine, one_pass = false) =>
+    post<PageResult>('/api/generate', { text, sliders, seed, labels, engine, one_pass }),
   plotter: () => json<PlotterInfo>('/api/plotter'),
   savePlotter: (pen: PenProfile) => post<PlotterInfo>('/api/plotter', pen),
-  plot: (paths: Path2[], page: { width: number; height: number }, title: string, dry_run: boolean) =>
-    post<{ parts: PlotPart[]; problems: string[] }>('/api/plot', { paths, page, title, dry_run }),
+  plot: (pages: Path2[][], page: { width: number; height: number }, title: string, dry_run: boolean) =>
+    post<{ parts: PlotPart[]; problems: string[] }>('/api/plot', { pages, page, title, dry_run }),
   importTemplate: (file: File) =>
     upload<{ results: { page: number | null; units?: number; variants?: number; empty?: string[] }[]; glyphs: Record<string, number> }>(
       '/api/template/import',

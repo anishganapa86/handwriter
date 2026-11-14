@@ -69,6 +69,7 @@ export default function Plotter() {
           <li>The printer homes with nothing fitted, then brings the head to the front and pauses.</li>
           <li>Clip the holder on. Tape the paper to the plate with its top edge against your back stop. Stand a 10 mm block under the pen, push the pen down until its tip just rests on the block, tighten it, and take the block away. If the holder reaches the block before the pen does, the pen depth setting is too small.</li>
           <li>Press Resume. Stay by the printer for the first runs and press Stop if anything looks wrong.</li>
+          <li>For a job with several sheets the printer pauses again after each one, with the head parked at the back and the bed lowered: swap the sheet against the same back stop and press Resume. The pencil stays in.</li>
         </ol>
         <p className="warn">
           Do every new setup as a dry run first: the pen then writes 5 mm above the paper so you can watch a whole job safely.

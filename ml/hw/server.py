@@ -128,6 +128,7 @@ class GenerateRequest(BaseModel):
     labels: list[dict] = []
     page: dict = {}
     engine: str = "model"
+    one_pass: bool = False
 
 
 class FillRequest(BaseModel):
@@ -138,7 +139,8 @@ class FillRequest(BaseModel):
 
 
 class PlotRequest(BaseModel):
-    paths: list
+    paths: list = []
+    pages: list = []
     page: dict
     title: str = "page"
     dry_run: bool = True
@@ -196,7 +198,14 @@ def generate(req: GenerateRequest):
     w = writer(req.engine)
     w.use_words = bool(req.sliders.get("real_words", False))
     w.joins = float(req.sliders.get("joins", 1.0))
-    out = layout_page(w, req.text, req.sliders, req.seed, req.page or None, req.labels)
+    page, fitted = dict(req.page), None
+    if req.one_pass:
+        margins, lines = plotter.one_pass_margins(plotter.load_pen(PLOTTER), {**LETTER, **page})
+        if margins:
+            page.update(margins)
+            fitted = {"lines": lines, **margins}
+    out = layout_page(w, req.text, req.sliders, req.seed, page or None, req.labels)
+    out["one_pass"] = fitted
     out["checkpoint"] = "glyph library" if req.engine == "glyphs" else w.path.name
     out["default_size"] = w.size_mm
     return out
@@ -309,27 +318,40 @@ def set_plotter(pen: dict):
 @app.post("/api/plot")
 def make_plot(req: PlotRequest):
     pen = plotter.load_pen(PLOTTER)
-    strokes = [np.asarray(p, dtype=np.float64) for p in req.paths if len(p)]
-    parts, problems = plotter.place_page(strokes, float(req.page.get("width", LETTER["width"])),
-                                         float(req.page.get("height", LETTER["height"])), pen)
+    width, height = float(req.page.get("width", LETTER["width"])), float(req.page.get("height", LETTER["height"]))
+    steps, problems = [], []
+    for number, paths in enumerate(req.pages or [req.paths], 1):
+        strokes = [np.asarray(p, dtype=np.float64) for p in paths if len(p)]
+        if not strokes:
+            continue
+        parts, issues = plotter.place_page(strokes, width, height, pen)
+        problems += [f"Page {number}: {issue}" for issue in issues]
+        for k, part in enumerate(parts):
+            steps.append({"page": number, "turned": part["turned"], "same_sheet": k > 0, "strokes": part["strokes"]})
+    if problems or not steps:
+        return {"parts": [], "problems": problems or ["Nothing to draw."]}
+    job, issues = plotter.build_job([s["strokes"] for s in steps], pen, req.title, req.dry_run)
+    if job is None:
+        return {"parts": [], "problems": issues}
+    check = pen if not req.dry_run else plotter.pen_from({**asdict(pen), "z_draw": pen.z_draw + 5, "z_lift": min(pen.z_lift + 5, pen.set_z() - 1)})
+    faults, _ = plotter.simulate(job["gcode"], check)
+    if faults:
+        return {"parts": [], "problems": [f"The file failed its safety check and was not written: {faults[0]}"]}
+    edge = lambda s: "bottom edge against the back stop (upside down)" if s["turned"] else "top edge against the back stop"
+    notes = [f"Pause 1: sheet for page {steps[0]['page']} on the plate, {edge(steps[0])}. Fit the holder, set the pencil on the 10 mm block, press Resume."]
+    for i, s in enumerate(steps[1:], 2):
+        if s["same_sheet"]:
+            notes.append(f"Pause {i}: turn the same sheet round, {edge(s)}. Press Resume.")
+        else:
+            notes.append(f"Pause {i}: take the finished sheet off and put on a new one for page {s['page']}, {edge(s)}. Press Resume.")
+    sheets = len({s["page"] for s in steps})
     stem = re.sub(r"[^A-Za-z0-9_-]+", "-", req.title).strip("-")[:40] or "page"
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    out = []
-    for i, part in enumerate(parts, 1):
-        job, issues = plotter.build_gcode(part["strokes"], pen, req.title, req.dry_run)
-        if job is None:
-            problems += issues
-            continue
-        faults, _ = plotter.simulate(job["gcode"], pen if not req.dry_run else plotter.pen_from({**asdict(pen), "z_draw": pen.z_draw + 5,
-                                                                                                    "z_lift": min(pen.z_lift + 5, pen.set_z() - 1)}))
-        if faults:
-            problems.append(f"The file failed its safety check and was not written: {faults[0]}")
-            continue
-        name = f"{stem}-{stamp}{'-dryrun' if req.dry_run else ''}-part{i}of{len(parts)}.gcode.3mf"
-        (DATA / "plots" / name).write_bytes(plotter.package(job, part["strokes"], req.title))
-        out.append({"name": name, "url": f"/files/plots/{name}", "turned": part["turned"], "strokes": job["strokes"],
-                    "minutes": int(round(job["seconds"] / 60))})
-    return {"parts": out if not problems else [], "problems": problems}
+    name = f"{stem}-{time.strftime('%Y%m%d-%H%M%S')}{'-dryrun' if req.dry_run else ''}-{sheets}sheet{'s' if sheets > 1 else ''}.gcode.3mf"
+    (DATA / "plots").mkdir(exist_ok=True)
+    (DATA / "plots" / name).write_bytes(plotter.package(job, [st for s in steps for st in s["strokes"]], req.title))
+    return {"parts": [{"name": name, "url": f"/files/plots/{name}", "turned": False, "strokes": job["strokes"], "sheets": sheets,
+                       "flips": sum(1 for s in steps if s["same_sheet"]), "minutes": int(round(job["seconds"] / 60)), "steps": notes}],
+            "problems": []}
 
 
 @app.get("/api/plot/calibration")

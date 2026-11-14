@@ -192,7 +192,7 @@ export default function Worksheet({ mode = 'worksheet' }: Props) {
           </button>
         </div>
         {error && <p className="warn">{error}</p>}
-        {sheet && ink.length > 0 && <PlotExport paths={ink} page={{ width: sheet.page.w, height: sheet.page.h }} title={copy ? 'copied-page' : 'worksheet'} />}
+        {sheet && ink.length > 0 && <PlotExport pages={[ink]} page={{ width: sheet.page.w, height: sheet.page.h }} title={copy ? 'copied-page' : 'worksheet'} />}
       </div>
       {sheet ? (
         <svg

@@ -130,7 +130,9 @@ Every file follows the same rules, checked by `simulate` before a file is writte
 
 A letter page is longer than the plate, so `place_page` works out what the pen can reach with the saved holder settings. If the whole page is reachable it makes one file; otherwise it splits the page at the widest gap between lines into two passes, the second with the paper turned upside down against the same back stop, and reverses the coordinates for that pass. Strokes that neither pass can reach are reported with the margins needed. Pen offsets, holder reach, heights and speeds live in `data/plotter.json` and are edited on the Plotter tab, which also serves a calibration file (cross and circle, then the nozzle parks over the plate centre). Files are written to `data/plots/`. Dry run raises the pen 5 mm.
 
-Not done: nothing has been run on a real printer from this project; pressing Pause on the printer mid-job is not verified to lift the pen.
+**No turning, several sheets.** With "Fit each sheet to one plotter pass" ticked on the Write tab (the default), `one_pass_margins` widens the page margins to what the pencil reaches the right way up with the saved holder settings, so the layout puts fewer lines on each sheet (21 with the Falu preset and uncalibrated offsets) and runs on to more sheets instead of needing a second pass. "Make plotter file for all N sheets" then builds one job with `build_job`: it homes once, pauses once to fit the pencil, and after each sheet lifts the bed 30 mm clear, parks the head at the back and pauses (`M400 U1`) for the sheet to be swapped against the same back stop; the pencil stays in. The app lists what to do at each pause in order. A sheet that still needs two passes (one-pass fitting off, or a worksheet with writing low on the page) gets its own pause with a turn instruction in the same file. Both sides of a sheet and automatic feeding are not built.
+
+Not done: nothing has been run on a real printer from this project; several pauses in one file are not verified on the printer either; pressing Pause on the printer mid-job is not verified to lift the pen.
 
 ## Pencil holder
 
