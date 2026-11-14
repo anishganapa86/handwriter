@@ -13,10 +13,9 @@ from xml.sax.saxutils import quoteattr
 import numpy as np
 
 BED = 256.0
-PEN_LENGTH = 6.0
 CUBE = 10.0
-PEN_SET_Z = CUBE + PEN_LENGTH
 FRONT_CLEAR = 5.0
+SIDE_CLEAR = 5.0
 EDGE = 1.0
 CLIP_XY = (128.0, 20.0)
 PARK_XY = (128.0, 250.0)
@@ -32,6 +31,8 @@ class Pen:
     offset_x: float = 0.0
     offset_y: float = 0.0
     holder_front: float = 60.0
+    holder_left: float = 0.0
+    tip_depth: float = 6.0
     z_draw: float = 5.0
     z_lift: float = 8.0
     draw_speed: float = 1500.0
@@ -46,28 +47,40 @@ class Pen:
         out = []
         if self.z_draw < 0.5:
             out.append("Draw height must be at least 0.5 mm so the nozzle never reaches the paper.")
-        if self.z_lift < PEN_LENGTH + 1.0:
-            out.append(f"Lift height must be at least {PEN_LENGTH + 1:g} mm so the pen tip clears the paper.")
+        if not 2.0 <= self.tip_depth <= 60.0:
+            out.append("Pen depth below the nozzle must be between 2 and 60 mm.")
+        if self.z_draw >= self.tip_depth:
+            out.append(f"Draw height must be below the pen depth ({self.tip_depth:g} mm) or the pen never touches the paper.")
+        if self.z_lift < self.tip_depth + 1.0:
+            out.append(f"Lift height must be at least {self.tip_depth + 1:g} mm so the pen tip clears the paper.")
         if self.z_lift <= self.z_draw:
             out.append("Lift height must be above draw height.")
-        if self.z_lift > PEN_SET_Z - 1.0:
-            out.append(f"Lift height must be {PEN_SET_Z - 1:g} mm or less.")
+        if self.z_lift > self.set_z() - 1.0:
+            out.append(f"Lift height must be {self.set_z() - 1:g} mm or less.")
         for name in ("draw_speed", "travel_speed", "z_speed", "accel"):
             if getattr(self, name) <= 0:
                 out.append(f"{name} must be greater than 0.")
         if not 0 <= self.holder_front <= 150:
             out.append("Holder reach must be between 0 and 150 mm.")
+        if not 0 <= self.holder_left <= 120:
+            out.append("Holder reach to the left must be between 0 and 120 mm.")
         if abs(self.offset_x) >= 100 or abs(self.offset_y) >= 100:
             out.append("Pen offsets must be smaller than 100 mm.")
         if not 150 <= self.back_stop_y <= 258:
             out.append("Paper back edge must sit between Y150 and Y258.")
         return out
 
+    def set_z(self):
+        return CUBE + self.tip_depth
+
     def min_nozzle_y(self):
         return self.holder_front + FRONT_CLEAR if self.holder_front > 0 else 0.0
 
+    def min_nozzle_x(self):
+        return self.holder_left + SIDE_CLEAR if self.holder_left > 0 else 0.0
+
     def reach(self):
-        x0 = max(0.0, self.offset_x) + EDGE
+        x0 = max(0.0, self.min_nozzle_x() + self.offset_x) + EDGE
         x1 = min(BED, BED + self.offset_x) - EDGE
         y0 = max(0.0, self.min_nozzle_y() + self.offset_y) + EDGE
         y1 = min(BED, BED + self.offset_y) - EDGE
@@ -157,12 +170,14 @@ def check_points(points, pen, label):
         out.append(f"{label}: the nozzle would leave the plate.")
     if nozzle[:, 1].min() < pen.min_nozzle_y():
         out.append(f"{label}: the holder would hit the front; keep drawing at least {pen.min_nozzle_y() - nozzle[:, 1].min():.1f} mm further back.")
+    if nozzle[:, 0].min() < pen.min_nozzle_x():
+        out.append(f"{label}: the holder would hit the left side; keep drawing at least {pen.min_nozzle_x() - nozzle[:, 0].min():.1f} mm further right.")
     return out
 
 
 def clip_xy(pen):
     x, y = CLIP_XY
-    return x, max(y, pen.min_nozzle_y(), -pen.offset_y)
+    return max(x, pen.min_nozzle_x(), -pen.offset_x), max(y, pen.min_nozzle_y(), -pen.offset_y)
 
 
 def park_xy(pen):
@@ -189,7 +204,7 @@ def build_gcode(strokes, pen, title="page", dry_run=False, after=None):
         return None, problems
     raise_by = 5.0 if dry_run else 0.0
     z_draw = pen.z_draw + raise_by
-    z_lift = min(pen.z_lift + raise_by, PEN_SET_Z - 1.0)
+    z_lift = min(pen.z_lift + raise_by, pen.set_z() - 1.0)
     if z_lift <= z_draw:
         z_lift = z_draw + 1.0
     length = sum(float(np.linalg.norm(np.diff(s, axis=0), axis=1).sum()) for s in strokes)
@@ -205,11 +220,11 @@ def build_gcode(strokes, pen, title="page", dry_run=False, after=None):
     out = ["; HEADER_BLOCK_START", f"; BambuStudio {BAMBU_VERSION}",
            f"; model printing time: {minutes}m {rest}s; total estimated time: {minutes}m {rest}s",
            f"; total layer number: {pauses}", "; total filament length [mm] : 0.00", "; total filament volume [cm^3] : 0.00",
-           "; total filament weight [g] : 0.00", f"; max_z_height: {PEN_SET_Z:.2f}", "; HEADER_BLOCK_END", "",
+           "; total filament weight [g] : 0.00", f"; max_z_height: {pen.set_z():.2f}", "; HEADER_BLOCK_END", "",
            f"; pen plot: {title}", "; EXECUTABLE_BLOCK_START",
            "G21", "G90", "M104 S0", "M140 S0", "M73 P0", "G28", "M104 S0", "M140 S0",
            "M1002 gcode_claim_action : 0", "; MACHINE_START_GCODE_END", f"M204 S{num(pen.accel)}",
-           f"G0 Z{num(PEN_SET_Z)} F{num(pen.z_speed)}", f"G0 X{num(cx)} Y{num(cy)} F{num(pen.travel_speed)}",
+           f"G0 Z{num(pen.set_z())} F{num(pen.z_speed)}", f"G0 X{num(cx)} Y{num(cy)} F{num(pen.travel_speed)}",
            *pause(1), "; PEN_FITTED", f"G0 Z{num(z_lift)} F{num(pen.z_speed)}"]
     done, last_pct, up, cursor = 0.0, 0, True, None
     for s in strokes:
@@ -419,6 +434,8 @@ def simulate(gcode, pen):
                     faults.append(f"pen off plate: {nx + pen.offset_x},{ny + pen.offset_y}")
                 if ny < pen.min_nozzle_y() - 1e-6:
                     faults.append(f"holder past the front: Y{ny}")
+                if nx < pen.min_nozzle_x() - 1e-6:
+                    faults.append(f"holder past the left side: X{nx}")
                 if fitted and word == "G0" and z is not None and z < pen.z_lift - 1e-6:
                     faults.append("travel with the pen down")
                 if word == "G1":

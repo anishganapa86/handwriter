@@ -2,12 +2,23 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { PenProfile, PlotterInfo } from '../lib/api'
 
+const FALU_PENCIL: Partial<PenProfile> = {
+  holder_front: 50,
+  holder_left: 43,
+  tip_depth: 17,
+  z_draw: 15.5,
+  z_lift: 20,
+  draw_speed: 1200,
+}
+
 const FIELDS: { key: keyof PenProfile; label: string; hint: string; step: number }[] = [
   { key: 'offset_x', label: 'Pen offset X (mm)', hint: 'Pen tip position minus nozzle position, left to right. Measured by the calibration file.', step: 0.1 },
   { key: 'offset_y', label: 'Pen offset Y (mm)', hint: 'Pen tip minus nozzle, front to back. Negative when the pen sits in front of the nozzle.', step: 0.1 },
   { key: 'holder_front', label: 'Holder reach in front of nozzle (mm)', hint: 'How far the holder sticks out towards the door. The head stays this far plus 5 mm from the front.', step: 1 },
-  { key: 'z_draw', label: 'Draw height (mm)', hint: 'Nozzle height while writing. The pen tip is set 6 mm below the nozzle, so 5 presses a sprung pen 1 mm.', step: 0.1 },
-  { key: 'z_lift', label: 'Lift height (mm)', hint: 'Nozzle height while moving between strokes. At least 7.', step: 0.1 },
+  { key: 'holder_left', label: 'Holder reach left of nozzle (mm)', hint: 'How far the holder sticks out to the left. The head stays this far plus 5 mm from the left side.', step: 1 },
+  { key: 'tip_depth', label: 'Pen depth below nozzle (mm)', hint: 'Where the pen tip is set when you fit it. The printer holds the nozzle this far plus 10 mm above the plate while you set the tip on a 10 mm block.', step: 0.5 },
+  { key: 'z_draw', label: 'Draw height (mm)', hint: 'Nozzle height while writing. Pen depth minus draw height is how far the sprung pen is pressed in, about 1 to 1.5 mm.', step: 0.1 },
+  { key: 'z_lift', label: 'Lift height (mm)', hint: 'Nozzle height while moving between strokes. At least pen depth plus 1.', step: 0.1 },
   { key: 'draw_speed', label: 'Writing speed (mm/min)', hint: 'Slower is cleaner. 1500 is a safe start.', step: 100 },
   { key: 'travel_speed', label: 'Travel speed (mm/min)', hint: 'Speed between strokes with the pen up.', step: 100 },
   { key: 'z_speed', label: 'Lift speed (mm/min)', hint: 'How fast the bed moves for pen up and down.', step: 50 },
@@ -53,10 +64,10 @@ export default function Plotter() {
           Nothing is heated and nothing is extruded. The hotend stays on; the pen sits in a holder beside it.
         </p>
         <ol className="steps">
-          <li>Fit a sprung or free-sliding pen holder to the toolhead, with no pen in it. Remove any filament from the nozzle tip.</li>
+          <li>Leave the holder off. Remove any filament from the nozzle tip, and lift off the top glass if a pen or pencil will stick up above the toolhead.</li>
           <li>In Bambu Studio open the file, press Print, and untick bed levelling, flow dynamics calibration and timelapse.</li>
-          <li>The printer homes, then brings the head to the front and pauses.</li>
-          <li>Tape the paper to the plate with its top edge against your back stop. Stand a 10 mm block under the holder, drop the pen in so its tip rests on the block, tighten it, and take the block away.</li>
+          <li>The printer homes with nothing fitted, then brings the head to the front and pauses.</li>
+          <li>Clip the holder on. Tape the paper to the plate with its top edge against your back stop. Stand a 10 mm block under the pen, push the pen down until its tip just rests on the block, tighten it, and take the block away. If the holder reaches the block before the pen does, the pen depth setting is too small.</li>
           <li>Press Resume. Stay by the printer for the first runs and press Stop if anything looks wrong.</li>
         </ol>
         <p className="warn">
@@ -84,6 +95,9 @@ export default function Plotter() {
         <div className="row">
           <button className="primary" onClick={() => void save()}>
             Save settings
+          </button>
+          <button onClick={() => setPen({ ...pen, ...FALU_PENCIL })} title="Clearances from Falu's tested P1S profile; pen offsets still come from the calibration file.">
+            Fill in Falu pencil holder values
           </button>
           <a className="file" href="/api/plot/calibration" download="pen-calibration.gcode.3mf">
             Download calibration file

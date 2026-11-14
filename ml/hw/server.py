@@ -321,7 +321,7 @@ def make_plot(req: PlotRequest):
             problems += issues
             continue
         faults, _ = plotter.simulate(job["gcode"], pen if not req.dry_run else plotter.pen_from({**asdict(pen), "z_draw": pen.z_draw + 5,
-                                                                                                    "z_lift": min(pen.z_lift + 5, plotter.PEN_SET_Z - 1)}))
+                                                                                                    "z_lift": min(pen.z_lift + 5, pen.set_z() - 1)}))
         if faults:
             problems.append(f"The file failed its safety check and was not written: {faults[0]}")
             continue

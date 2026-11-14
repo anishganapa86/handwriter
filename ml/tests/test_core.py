@@ -186,3 +186,22 @@ def test_plotter_gcode_is_safe():
     assert f"G1 Z{plotter.num(pen.z_draw + 5)}" in high and f"G1 Z{plotter.num(pen.z_draw)} " not in high
     cal, issues = plotter.calibration(pen)
     assert not issues and plotter.simulate(cal["gcode"], pen)[0] == [] and cal["pauses"] == 2
+
+
+def test_plotter_side_holder_keeps_clear():
+    from hw import plotter
+    pen = plotter.Pen(offset_x=-30, offset_y=-30, holder_front=50, holder_left=43, tip_depth=17, z_draw=15.5, z_lift=20)
+    assert pen.problems() == [] and pen.set_z() == 27
+    page = [np.array([[20.0 + 10 * k, y], [24.0 + 10 * k, y + 3]]) for y in range(30, 250, 10) for k in range(17)]
+    parts, problems = plotter.place_page(page, 215.9, 279.4, pen)
+    assert not problems and parts
+    for part in parts:
+        job, issues = plotter.build_gcode(part["strokes"], pen)
+        assert not issues
+        assert plotter.simulate(job["gcode"], pen)[0] == []
+        assert "G0 Z27 " in job["gcode"]
+        xs = [float(w[1:]) for line in job["gcode"].splitlines() if line.startswith(("G0 X", "G1 X")) for w in line.split() if w[0] == "X"]
+        assert min(xs) >= pen.min_nozzle_x()
+    bad, why = plotter.build_gcode([np.array([[5.0, 150.0], [12.0, 150.0]])], pen)
+    assert bad is None and any("left side" in w for w in why)
+    assert plotter.Pen(tip_depth=17, z_draw=18, z_lift=20).problems()

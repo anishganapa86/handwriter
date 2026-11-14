@@ -1,0 +1,47 @@
+{
+  "settings": {
+    "pencil_d": 8.0,
+    "fit": 0.4,
+    "tip_d": 0.0,
+    "tip_len": 0.0,
+    "chamfer": 0.6
+  },
+  "parts": {
+    "pencil_guide": {
+      "watertight": true,
+      "volume_cm3": 12.14,
+      "size_mm": [
+        17.5,
+        17.5,
+        70.0
+      ],
+      "bodies": 1
+    },
+    "pencil_fit_rings": {
+      "watertight": true,
+      "volume_cm3": 4.52,
+      "size_mm": [
+        108.4,
+        13.6,
+        9.2
+      ],
+      "bodies": 7
+    }
+  },
+  "fit_ring_bores_mm": [
+    7.6,
+    7.8,
+    8.0,
+    8.2,
+    8.4,
+    8.6,
+    8.8
+  ],
+  "falu_check": {
+    "seat_shift_mm": 1.35,
+    "overlap_with_mount_mm3": 1.36,
+    "outside_differs_from_falu_mm3": 131.08,
+    "outside_volume_mm3": 4636.4,
+    "spring_module": "D9"
+  }
+}

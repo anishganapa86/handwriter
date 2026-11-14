@@ -34,6 +34,8 @@ export type PenProfile = {
   offset_x: number
   offset_y: number
   holder_front: number
+  holder_left: number
+  tip_depth: number
   z_draw: number
   z_lift: number
   draw_speed: number

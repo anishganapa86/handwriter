@@ -103,7 +103,20 @@ Every file follows the same rules, checked by `simulate` before a file is writte
 
 A letter page is longer than the plate, so `place_page` works out what the pen can reach with the saved holder settings. If the whole page is reachable it makes one file; otherwise it splits the page at the widest gap between lines into two passes, the second with the paper turned upside down against the same back stop, and reverses the coordinates for that pass. Strokes that neither pass can reach are reported with the margins needed. Pen offsets, holder reach, heights and speeds live in `data/plotter.json` and are edited on the Plotter tab, which also serves a calibration file (cross and circle, then the nozzle parks over the plate centre). Files are written to `data/plots/`. Dry run raises the pen 5 mm.
 
-Not done: nothing has been run on a real printer from this project; pressing Pause on the printer mid-job is not verified to lift the pen; no pen holder has been designed.
+Not done: nothing has been run on a real printer from this project; pressing Pause on the printer mid-job is not verified to lift the pen.
+
+## Pencil holder
+
+The pencil rides in Falu's Universal Modular Tool System for the P1S ([MakerWorld 2029113](https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series)): its head mount clips onto the toolhead and holds a 17.5 mm tool guide in three clip rings, and its spring module sits on top of the guide and grips the pen with one screw, so the pen floats up against a printed serpentine spring. Falu's files are free for personal use under MakerWorld's exclusive licence and are not in this repository; download them from MakerWorld.
+
+`hardware/pencil_holder.py` makes the one part that changes for a pencil, `pencil_guide.stl`: a guide with the same outside as Falu's (17.5 mm, with 15 mm grooves where the mount's rings sit and the snap groove the spring module locks onto) and a bore sized for the pencil. The outside profile was measured from Falu's Stabilo guide; with `--falu <folder of Falu's files>` the script seats the new guide in the head mount and reports the overlap with the rings (1.4 mm3 for the 8 mm default, a snug fit) and which spring module the pencil passes through (D9 up to 8.9 mm, D11 up to 10.9 mm). It also makes `pencil_fit_rings.stl`. `hardware/preview.py` renders `hardware/out/pencil_holder_preview.png`.
+
+1. Measure the pencil barrel, print `pencil_fit_rings.stl` (bores of the measured size -0.4 to +0.8 mm in 0.2 mm steps, marked by 1-7 bumps), and pick the tightest ring the pencil slides through freely.
+2. `python hardware/pencil_holder.py --pencil 8.2` with that size (the bore adds 0.4 mm). If the pencil narrows towards the tip, `--tip 6.0 12` makes the bottom 12 mm of the bore fit a 6 mm tip section so the point cannot wobble.
+3. Print the guide standing upright, 0.2 mm layers, no supports. Print Falu's `Head-Mount-V1-Series X and Series P.stl` and the spring module the script names, as Falu describes.
+4. A 0.7 mm mechanical pencil keeps a constant line; a wooden pencil wears blunt within a page. The pencil must stick out of the guide by more than the spring travel (5 mm) plus 2 mm, so the guide never touches the paper.
+
+On the Plotter tab, "Fill in Falu pencil holder values" sets the clearances from Falu's tested P1S profile: the head stays 55 mm from the front and 48 mm from the left (his excluded area), the pencil tip is set 17 mm below the nozzle, it draws 1.5 mm into the spring and lifts 3 mm. The pen offsets still have to be measured with the calibration file. The holder goes on at the pause after homing, never before. The pencil and spring module stand well above the toolhead, so lift off the P1S top glass before plotting.
 
 ## Phase 2 design (original Klipper plan, superseded for the P1S)
 

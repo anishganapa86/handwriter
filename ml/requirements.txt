@@ -11,3 +11,5 @@ protobuf
 scikit-image
 easyocr
 pymupdf
+manifold3d
+trimesh
