@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import math
+import re
 import struct
 import zipfile
 import zlib
@@ -362,8 +363,32 @@ MODEL_SETTINGS = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+_PLAIN = re.compile(r"^(-?\d+(\.\d+)?%?|\d+(\.\d+)?x\d+(\.\d+)?|true|false|nil)$")
+
+
+def _config_value(value):
+    """One setting in the text form Bambu Studio writes into its own G-code: numbers, points and
+    booleans in a list are joined with commas, other lists with semicolons, quoting items that need it."""
+    if not isinstance(value, list):
+        return str(value).replace("\\", "\\\\").replace("\n", "\\n")
+    items = [str(v) for v in value]
+    if all(_PLAIN.match(v) for v in items):
+        return ",".join(items)
+    quote = lambda v: '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' if (not v or re.search(r'[\s;",\\]', v)) else v
+    return ";".join(quote(v) for v in items)
+
+
+def config_block():
+    """Bambu Studio 2.x refuses a plate G-code that names it as the producer unless the file ends with
+    the printer settings between CONFIG_BLOCK_START and CONFIG_BLOCK_END (at least 80 of them)."""
+    settings = json.loads(SETTINGS_FILE.read_text())
+    lines = [f"; {k} = {_config_value(v)}" for k, v in settings.items()]
+    return "\n".join(["; CONFIG_BLOCK_START", *lines, "; CONFIG_BLOCK_END", ""])
+
+
 def package(job, strokes, title="page"):
-    data = job["gcode"].encode("utf-8")
+    gcode = job["gcode"] if job["gcode"].endswith("\n") else job["gcode"] + "\n"
+    data = (gcode + config_block()).encode("utf-8")
     today = datetime.date.today().isoformat()
     name = quoteattr(title)[1:-1]
     model = f"""<?xml version="1.0" encoding="UTF-8"?>
