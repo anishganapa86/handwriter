@@ -54,6 +54,17 @@ ml/inksight_worker.py runs in its own TensorFlow environment
 data/           sessions, photo words, checkpoints, reports (created at runtime)
 ```
 
+## Running it on a Mac (or any laptop) without the PC
+
+Everything needed to write pages and make plotter files runs on a Mac with no admin password, no graphics card and no Node.js: the built web app is committed in `app/dist`, and `mac/setup.sh` installs [uv](https://github.com/astral-sh/uv) into your home folder, uses it to fetch Python 3.12 into `~/.venvs/handwriter`, installs the short package list in `ml/requirements-mac.txt`, saves the Falu pencil-holder settings to `data/plotter.json` if there are none yet, and writes a test line to prove the letter library loads.
+
+1. On github.com, signed in, open the repository and choose Code, Download ZIP. Unzip it (or `git clone` it if git is set up).
+2. Open Terminal in that folder (Finder: right-click the folder, Services, New Terminal at Folder) and run `bash mac/setup.sh`. A few minutes the first time.
+3. Run `bash mac/start.sh`. The browser opens at `http://localhost:8000`. Close the Terminal window to stop it. After the first time, `mac/Start Handwriter.command` does setup and start with a double-click (if macOS blocks it, right-click it and choose Open, or keep using Terminal).
+4. Send the files to the printer with Bambu Studio for Mac, signed in to the printer's account.
+
+What stays on the PC: Photo review (InkSight needs the PC's GPU through WSL), training, and reading text on Copy a page (EasyOCR and TrOCR are not in the Mac package list; drawings and typed corrections still work). Calibration lives in `data/plotter.json` on whichever machine you use; copy that file across if you move, and keep it when you download a newer ZIP. Tested by a clean install on Linux (Ubuntu in WSL), not on a Mac.
+
 ## Running it
 
 Windows PC (training and serving):
