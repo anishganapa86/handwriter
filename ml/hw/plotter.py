@@ -16,6 +16,7 @@ BED = 256.0
 CUBE = 10.0
 FRONT_CLEAR = 5.0
 SIDE_CLEAR = 5.0
+FALU_PENCIL = {"holder_front": 50.0, "holder_left": 43.0, "tip_depth": 24.0, "z_draw": 22.5, "z_lift": 27.0, "draw_speed": 1200.0}
 EDGE = 1.0
 CLIP_XY = (128.0, 20.0)
 PARK_XY = (128.0, 250.0)

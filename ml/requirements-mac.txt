@@ -1,0 +1,11 @@
+numpy
+torch
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python-headless
+pillow
+scikit-image
+pymupdf
+manifold3d
+trimesh

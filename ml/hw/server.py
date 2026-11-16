@@ -47,7 +47,7 @@ def glyph_writer():
         if state["glyphs"] is None or state["glyphs_stamp"] != stamp:
             accepted = sum(1 for p in (DATA / "photo_words").glob("*.json") if '"status": "accepted"' in p.read_text(encoding="utf-8"))
             known = style_fit.load(DATA)
-            if not (DATA / "style.json").exists() or abs(known.get("accepted", 0) - accepted) >= 25:
+            if accepted and (not (DATA / "style.json").exists() or abs(known.get("accepted", 0) - accepted) >= 25):
                 fitted = style_fit.fit(DATA)
                 fitted["accepted"] = accepted
                 (DATA / "style.json").write_text(json.dumps(fitted, indent=1), encoding="utf-8")
