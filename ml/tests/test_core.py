@@ -107,6 +107,18 @@ def test_glyph_library(tmp_path):
     assert len(page["pages"][0]) == 5
 
 
+def test_new_sheets_add_letter_versions():
+    from hw.glyphs import merge_glyphs
+    a = [[[0.0, 0.0], [1.0, -2.0]]]
+    b = [[[0.0, 0.0], [1.5, -2.0]]]
+    c = [[[0.0, 0.0], [0.5, -2.0]]]
+    library = {"glyphs": {"o": [a], "x": [a]}}
+    assert merge_glyphs(library, {"o": [b, a], "q": [c]}) == (2, 1)
+    assert library["glyphs"]["o"] == [a, b] and library["glyphs"]["q"] == [c] and library["glyphs"]["x"] == [a]
+    assert merge_glyphs(library, {"o": [b, a], "q": [c]}) == (0, 3)
+    assert merge_glyphs(library, {"o": [c]}, replace=True) == (1, 0) and library["glyphs"]["o"] == [c]
+
+
 def test_photo_lines_become_samples(tmp_path):
     import json
     from hw.dataset import load_samples, writer_profile

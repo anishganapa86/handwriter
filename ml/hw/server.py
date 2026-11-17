@@ -20,7 +20,7 @@ from dataclasses import asdict
 from . import copynotes, copypage, photo, plotter, template, worksheet
 from .dataset import load_samples, split
 from .generate import Writer
-from .glyphs import GlyphWriter, load_library, save_glyph, summary
+from .glyphs import GlyphWriter, load_library, merge_glyphs, save_glyph, summary
 from .layout import LETTER, fit_box, layout_page, sliders_with_defaults
 from . import style as style_fit
 from .strokes import bounds, capture_line_to_strokes, clean, core_metrics, write_iam_xml
@@ -233,7 +233,7 @@ def template_pdf():
 
 
 @app.post("/api/template/import")
-async def template_import(file: UploadFile = File(...)):
+async def template_import(file: UploadFile = File(...), replace: bool = False):
     data = await file.read()
     first, pages, is_pdf = copypage.load_image(data, file.filename or "")
     if first is None:
@@ -242,15 +242,22 @@ async def template_import(file: UploadFile = File(...)):
     results = []
     with lock:
         library = load_library(GLYPHS)
+        before = json.dumps(library, ensure_ascii=False)
         for image in images:
             found = template.read_page(image)
             if found is None:
                 results.append({"page": None})
                 continue
-            library["glyphs"].update(found["glyphs"])
+            added, repeated = merge_glyphs(library, found["glyphs"], replace)
             results.append({"page": found["page"], "units": len(found["glyphs"]),
-                            "variants": sum(len(v) for v in found["glyphs"].values()), "empty": found["empty"]})
-        GLYPHS.write_text(json.dumps(library, ensure_ascii=False), encoding="utf-8")
+                            "variants": sum(len(v) for v in found["glyphs"].values()), "empty": found["empty"],
+                            "added": added, "repeated": repeated})
+        after = json.dumps(library, ensure_ascii=False)
+        if after != before:
+            backups = DATA / "archive" / "glyphs"
+            backups.mkdir(parents=True, exist_ok=True)
+            (backups / f"glyphs_{time.strftime('%Y%m%d_%H%M%S')}_{time.time_ns() % 10**9:09d}.json").write_text(before, encoding="utf-8")
+            GLYPHS.write_text(after, encoding="utf-8")
     return {"results": results, "glyphs": summary(library)}
 
 

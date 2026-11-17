@@ -109,6 +109,29 @@ def save_glyph(path, char, variants, baseline, replace=True):
     return library
 
 
+def variant_key(variant):
+    return json.dumps([[[round(float(v), 2) for v in p] for p in s] for s in variant])
+
+
+def merge_glyphs(library, found, replace=False):
+    added = repeated = 0
+    for ch, variants in found.items():
+        existing = [] if replace else library["glyphs"].get(ch, [])
+        seen = {variant_key(v) for v in existing}
+        kept = list(existing)
+        for v in variants:
+            key = variant_key(v)
+            if key in seen:
+                repeated += 1
+                continue
+            seen.add(key)
+            kept.append(v)
+            added += 1
+        if kept:
+            library["glyphs"][ch] = kept
+    return added, repeated
+
+
 def summary(library):
     return {ch: len(v) for ch, v in library["glyphs"].items()}
 

@@ -176,18 +176,20 @@ export default function Glyphs() {
     setExtra('')
   }
 
+  const [startOver, setStartOver] = useState(false)
+
   const importSheets = async (files: FileList | null) => {
     setImporting(true)
     const lines: string[] = []
     for (const file of Array.from(files ?? [])) {
       try {
-        const out = await api.importTemplate(file)
+        const out = await api.importTemplate(file, startOver)
         setCounts(out.glyphs)
         for (const r of out.results)
           lines.push(
             r.page === null
               ? `${file.name}: could not find the four corner squares. Retake the photo with the whole sheet in view.`
-              : `${file.name}: sheet ${r.page}, ${r.variants} samples of ${r.units} characters read${r.empty?.length ? `; left blank: ${r.empty.join(' ')}` : ''}.`,
+              : `${file.name}: sheet ${r.page}, ${r.variants} samples of ${r.units} characters read, ${r.added} new${r.repeated ? `, ${r.repeated} already stored from this photo` : ''}${r.empty?.length ? `; left blank: ${r.empty.join(' ')}` : ''}.`,
           )
       } catch (e) {
         lines.push(`${file.name}: ${String(e)}`)
@@ -227,7 +229,8 @@ export default function Glyphs() {
         <p>
           <b>Fastest way: print and fill in the letter sheets.</b> Use a fine dark pen, write at your normal speed and a little larger
           than usual, and keep each one inside its box. Then photograph each sheet flat with all four corner squares visible and add
-          the photos here. Each character you fill in replaces what was stored for it before.
+          the photos here. Every sheet adds new versions of each letter to the ones already stored, so filling two or three sheets
+          gives each letter more variety and makes pages look less repeated. A copy of the library is kept before each import.
         </p>
         <div className="row">
           <a className="file" href="/api/template.pdf" target="_blank" rel="noreferrer">
@@ -236,6 +239,10 @@ export default function Glyphs() {
           <label className="file">
             {importing ? 'Reading…' : 'Add photos of filled sheets'}
             <input type="file" accept="image/*,application/pdf" multiple onChange={(e) => void importSheets(e.target.files)} />
+          </label>
+          <label className="small">
+            <input type="checkbox" checked={startOver} onChange={(e) => setStartOver(e.target.checked)} /> Replace what is stored for
+            each character these sheets fill in
           </label>
         </div>
         {sheetNote && <p className="muted small">{sheetNote}</p>}

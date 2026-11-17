@@ -91,11 +91,11 @@ export const api = {
   savePlotter: (pen: PenProfile) => post<PlotterInfo>('/api/plotter', pen),
   plot: (pages: Path2[][], page: { width: number; height: number }, title: string, dry_run: boolean) =>
     post<{ parts: PlotPart[]; problems: string[] }>('/api/plot', { pages, page, title, dry_run }),
-  importTemplate: (file: File) =>
-    upload<{ results: { page: number | null; units?: number; variants?: number; empty?: string[] }[]; glyphs: Record<string, number> }>(
-      '/api/template/import',
-      file,
-    ),
+  importTemplate: (file: File, replace = false) =>
+    upload<{
+      results: { page: number | null; units?: number; variants?: number; empty?: string[]; added?: number; repeated?: number }[]
+      glyphs: Record<string, number>
+    }>(`/api/template/import${replace ? '?replace=true' : ''}`, file),
   saveGlyph: (char: string, variants: number[][][][], baseline: number) =>
     post<{ glyphs: Record<string, number> }>('/api/glyphs', { char, variants, baseline }),
   worksheet: (file: File) =>
