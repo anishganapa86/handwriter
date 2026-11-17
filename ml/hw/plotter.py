@@ -125,6 +125,23 @@ def paper_left(pen, page_w):
     return float(np.clip((x0 + x1) / 2 - page_w / 2, 0.0, BED - page_w))
 
 
+def reachable(strokes, page_w, page_h, pen):
+    """For each stroke (page mm), whether the pen can draw it with the sheet upright or turned round."""
+    x0, y0, x1, y1 = pen.reach()
+    left, back = paper_left(pen, page_w), pen.back_stop_y
+    out = []
+    for s in strokes:
+        p = np.asarray(s, dtype=np.float64)
+        if not len(p):
+            out.append(False)
+            continue
+        up = np.stack([left + p[:, 0], back - p[:, 1]], axis=1)
+        turn = np.stack([left + page_w - p[:, 0], back - (page_h - p[:, 1])], axis=1)
+        inside = lambda q: bool((q[:, 0] >= x0).all() and (q[:, 0] <= x1).all() and (q[:, 1] >= y0).all() and (q[:, 1] <= y1).all())
+        out.append(inside(up) or inside(turn))
+    return out
+
+
 def place_page(strokes, page_w, page_h, pen):
     x0, y0, x1, y1 = pen.reach()
     if page_w > BED:

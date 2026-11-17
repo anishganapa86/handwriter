@@ -47,6 +47,10 @@ textarea { resize: vertical; }
 .sheet.placing { cursor: crosshair; }
 .sheet.empty { min-height: 480px; display: grid; place-items: center; color: var(--muted); }
 .sheet .ink { fill: none; stroke: var(--ink); stroke-width: 0.35; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.sheet .ink.hot { stroke: #c0392b; stroke-width: 0.6; }
+.sheet .ink.out { stroke: #d35400; stroke-dasharray: 0.8 0.5; }
+.sheet .hit { fill: none; stroke: transparent; stroke-width: 2.2; pointer-events: stroke; cursor: pointer; }
+.sheet .erase { fill: rgba(192, 57, 43, 0.08); stroke: #c0392b; stroke-width: 0.3; stroke-dasharray: 1 1; pointer-events: none; }
 .sheet .box { fill: rgba(36, 86, 199, 0.08); stroke: var(--accent); stroke-width: 0.3; cursor: move; }
 .sheet .box.active { fill: rgba(36, 86, 199, 0.2); stroke-width: 0.6; }
 .sheet .handle { fill: var(--accent); cursor: nwse-resize; }

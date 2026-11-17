@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from dataclasses import asdict
 
-from . import copypage, photo, plotter, template, worksheet
+from . import copynotes, copypage, photo, plotter, template, worksheet
 from .dataset import load_samples, split
 from .generate import Writer
 from .glyphs import GlyphWriter, load_library, save_glyph, summary
@@ -358,6 +358,14 @@ def make_plot(req: PlotRequest):
     return {"parts": [part] if part else [], "problems": problems}
 
 
+@app.post("/api/plot/reach")
+def plot_reach(req: PlotRequest):
+    """Which strokes of one page the pen can reach with the saved holder settings (upright or turned)."""
+    width, height = float(req.page.get("width", LETTER["width"])), float(req.page.get("height", LETTER["height"]))
+    pen = plotter.load_pen(PLOTTER)
+    return {"reachable": plotter.reachable(req.paths, width, height, pen), "back_stop_y": pen.back_stop_y}
+
+
 SWAP_TEST = "Sheet 1 of 2\nSwap test, first sheet.\n---\nSheet 2 of 2\nSwap test, second sheet."
 
 
@@ -400,6 +408,21 @@ async def copy_page(file: UploadFile = File(...), page: int = 0):
     cv2.imwrite(str(DATA / "copies" / f"{cid}_mask.png"), found["mask"])
     return {"id": cid, "image": f"/files/copies/{cid}.jpg", "page": found["page"], "pages": found["pages"],
             "boxes": found["boxes"], "deskew": found["method"], "diagram": copypage.diagram(found["mask"], found["boxes"])}
+
+
+@app.post("/api/copynotes")
+async def copy_notes(blank: UploadFile = File(...), filled: UploadFile = File(...), blank_page: int = 0, filled_page: int = 0):
+    """Lift the handwriting off a filled-in scan and place it on the blank handout it was written on."""
+    try:
+        found = copynotes.copy_notes(await blank.read(), await filled.read(), blank.filename or "", filled.filename or "",
+                                     blank_page, filled_page)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    nid = f"cn_{int(time.time() * 1000)}"
+    cv2.imwrite(str(DATA / "copies" / f"{nid}_blank.jpg"), found["blank"], [cv2.IMWRITE_JPEG_QUALITY, 88])
+    cv2.imwrite(str(DATA / "copies" / f"{nid}_filled.jpg"), found["aligned"], [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return {"id": nid, "image": f"/files/copies/{nid}_blank.jpg", "filled": f"/files/copies/{nid}_filled.jpg",
+            "page": found["page"], "pages": found["pages"], "matches": found["matches"], "strokes": found["strokes"]}
 
 
 @app.post("/api/copy/diagram")

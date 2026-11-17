@@ -51,6 +51,7 @@ export type PlotterInfo = { pen: PenProfile; reach: number[]; paper_left: number
 export type PlotPart = { name: string; url: string; turned: boolean; strokes: number; minutes: number; sheets: number; flips: number; steps: string[] }
 
 export type Box = { x: number; y: number; w: number; h: number; kind: string; text?: string; size?: number }
+export type CopiedNotes = { id: string; image: string; filled: string; page: { w: number; h: number }; pages: number; matches: number; strokes: Path2[] }
 
 export type PhotoWord = {
   id: string
@@ -105,6 +106,14 @@ export const api = {
       file,
     ),
   copyDiagram: (id: string, boxes: Box[]) => post<{ diagram: Path2[] }>('/api/copy/diagram', { id, boxes }),
+  reach: (paths: Path2[], page: { width: number; height: number }) =>
+    post<{ reachable: boolean[]; back_stop_y: number }>('/api/plot/reach', { paths, page }),
+  copyNotes: (blank: File, filled: File, blankPage: number, filledPage: number) => {
+    const form = new FormData()
+    form.append('blank', blank)
+    form.append('filled', filled)
+    return json<CopiedNotes>(`/api/copynotes?blank_page=${blankPage}&filled_page=${filledPage}`, { method: 'POST', body: form })
+  },
   fill: (boxes: Box[], sliders: Sliders, seed: number, engine: Engine) =>
     post<{ answers: { strokes: Path2[]; size: number }[] }>('/api/worksheet/fill', { boxes, sliders, seed, engine }),
   photo: (file: File) => upload<{ id: string }>('/api/photos', file),

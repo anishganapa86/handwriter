@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Blind from './pages/Blind'
 import Capture from './pages/Capture'
+import CopyNotes from './pages/CopyNotes'
 import Glyphs from './pages/Glyphs'
 import Plotter from './pages/Plotter'
 import Review from './pages/Review'
@@ -19,6 +20,7 @@ const tabs = [
   { id: 'review', label: 'Photo review', view: Review },
   { id: 'worksheet', label: 'Worksheet', view: Worksheet },
   { id: 'copy', label: 'Copy a page', view: CopyPage },
+  { id: 'notes', label: 'Copy my notes', view: CopyNotes },
   { id: 'plotter', label: 'Plotter', view: Plotter },
   { id: 'blind', label: 'Blind test', view: Blind },
   { id: 'train', label: 'Training', view: Train },
