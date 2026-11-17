@@ -101,7 +101,7 @@ export const api = {
   worksheet: (file: File) =>
     upload<{ id: string; image: string; page: { w: number; h: number }; boxes: Box[]; deskew: string }>('/api/worksheet', file),
   copyPage: (file: File, page: number) =>
-    upload<{ id: string; image: string; page: { w: number; h: number }; pages: number; boxes: Box[]; deskew: string; diagram: Path2[] }>(
+    upload<{ id: string; image: string; page: { w: number; h: number }; pages: number; boxes: Box[]; deskew: string; diagram: Path2[]; can_read?: boolean }>(
       `/api/copy?page=${page}`,
       file,
     ),

@@ -13,25 +13,36 @@ function CopyPage() {
   return <Worksheet mode="copy" />
 }
 
-const tabs = [
+// The everyday tools. Training tools sit behind one button so the bar stays short.
+const main = [
   { id: 'write', label: 'Write', view: Write },
+  { id: 'copy', label: 'From a photo', view: CopyPage },
+  { id: 'worksheet', label: 'Worksheet', view: Worksheet },
+  { id: 'notes', label: 'Copy my notes', view: CopyNotes },
+  { id: 'plotter', label: 'Printer', view: Plotter },
+]
+
+const training = [
   { id: 'glyphs', label: 'My letters', view: Glyphs },
   { id: 'capture', label: 'Line capture', view: Capture },
   { id: 'review', label: 'Photo review', view: Review },
-  { id: 'worksheet', label: 'Worksheet', view: Worksheet },
-  { id: 'copy', label: 'Copy a page', view: CopyPage },
-  { id: 'notes', label: 'Copy my notes', view: CopyNotes },
-  { id: 'plotter', label: 'Plotter', view: Plotter },
   { id: 'blind', label: 'Blind test', view: Blind },
   { id: 'train', label: 'Training', view: Train },
 ]
 
-const current = () => tabs.find((t) => t.id === window.location.hash.slice(1)) ?? tabs[0]
+const all = [...main, ...training]
+const current = () => all.find((t) => t.id === window.location.hash.slice(1)) ?? main[0]
+const isTraining = (id: string) => training.some((t) => t.id === id)
 
 export default function App() {
   const [tab, setTab] = useState(current)
+  const [showTraining, setShowTraining] = useState(() => isTraining(current().id))
   useEffect(() => {
-    const onHash = () => setTab(current())
+    const onHash = () => {
+      const next = current()
+      setTab(next)
+      if (isTraining(next.id)) setShowTraining(true)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -40,12 +51,28 @@ export default function App() {
     <>
       <nav>
         <strong>Handwriter</strong>
-        {tabs.map((t) => (
+        {main.map((t) => (
           <a key={t.id} href={`#${t.id}`} className={t.id === tab.id ? 'on' : ''}>
             {t.label}
           </a>
         ))}
+        <button
+          className={showTraining || isTraining(tab.id) ? 'navtoggle on' : 'navtoggle'}
+          aria-expanded={showTraining}
+          onClick={() => setShowTraining((v) => !v)}
+        >
+          Training {showTraining ? '▴' : '▾'}
+        </button>
       </nav>
+      {showTraining && (
+        <nav className="subnav">
+          {training.map((t) => (
+            <a key={t.id} href={`#${t.id}`} className={t.id === tab.id ? 'on' : ''}>
+              {t.label}
+            </a>
+          ))}
+        </nav>
+      )}
       <View />
     </>
   )

@@ -407,7 +407,8 @@ async def copy_page(file: UploadFile = File(...), page: int = 0):
     cv2.imwrite(str(DATA / "copies" / f"{cid}.jpg"), found["image"], [cv2.IMWRITE_JPEG_QUALITY, 88])
     cv2.imwrite(str(DATA / "copies" / f"{cid}_mask.png"), found["mask"])
     return {"id": cid, "image": f"/files/copies/{cid}.jpg", "page": found["page"], "pages": found["pages"],
-            "boxes": found["boxes"], "deskew": found["method"], "diagram": copypage.diagram(found["mask"], found["boxes"])}
+            "boxes": found["boxes"], "deskew": found["method"], "diagram": copypage.diagram(found["mask"], found["boxes"]),
+            "can_read": found["can_read"]}
 
 
 @app.post("/api/copynotes")

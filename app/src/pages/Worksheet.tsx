@@ -7,7 +7,7 @@ import type { Box, Engine, Sliders } from '../lib/api'
 import { download, pathsToSvg } from '../lib/ink'
 import type { Path2 } from '../lib/ink'
 
-type Sheet = { id: string; image: string; page: { w: number; h: number }; deskew: string; pages?: number }
+type Sheet = { id: string; image: string; page: { w: number; h: number }; deskew: string; pages?: number; can_read?: boolean }
 type Drag = { index: number; mode: 'move' | 'resize'; startX: number; startY: number; origin: Box }
 type Props = { mode?: 'worksheet' | 'copy' }
 
@@ -140,7 +140,14 @@ export default function Worksheet({ mode = 'worksheet' }: Props) {
             double-click the sheet to add one.
           </p>
         )}
-        {sheet && copy && (
+        {sheet && copy && sheet.can_read === false && (
+          <p className="warn small">
+            Reading the text in photos needs the text reader, which is installed on your PC, not this computer. The whole photo is
+            traced as drawing here. To have it written in your hand instead, double-click the page over each piece of text, type what
+            it says, and press Write this page.
+          </p>
+        )}
+        {sheet && copy && sheet.can_read !== false && (
           <p className="muted small">
             Found {boxes.length} pieces of text and traced the drawing around them. The text I read is a first guess: correct it in
             the list, delete boxes that are not text, and double-click the page to add a box over text I missed. Anything not inside

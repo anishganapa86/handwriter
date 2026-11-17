@@ -132,6 +132,9 @@ def analyse(data, name, page=0):
         return None
     flat, method = flatten(image, is_pdf)
     mask = ink_mask(flat)
-    boxes = to_mm(read_text(flat), flat.shape[1])
+    try:
+        boxes, can_read = to_mm(read_text(flat), flat.shape[1]), True
+    except ImportError:          # EasyOCR/TrOCR are installed on the PC only; elsewhere the page is traced and text typed in
+        boxes, can_read = [], False
     size = {"w": PAGE_W_MM, "h": round(flat.shape[0] * PAGE_W_MM / flat.shape[1], 2)}
-    return {"image": flat, "mask": mask, "boxes": boxes, "page": size, "pages": pages, "method": method}
+    return {"image": flat, "mask": mask, "boxes": boxes, "page": size, "pages": pages, "method": method, "can_read": can_read}

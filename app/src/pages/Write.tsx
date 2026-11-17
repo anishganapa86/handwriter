@@ -98,18 +98,15 @@ export default function Write() {
   return (
     <div className="page split">
       <div className="side">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} spellCheck={false} />
-        <p className="muted small">
-          Layout markup: <code>x^2</code> or <code>x^{'{10}'}</code> for exponents, <code>a_{'{n}'}</code> for subscripts,{' '}
-          <code>\frac{'{a}{b}'}</code> for fractions. A line with just <code>---</code> starts a new sheet.
-        </p>
-        <EnginePicker engine={engine} onChange={setEngine} />
-        <SliderPanel sliders={sliders} onChange={setSliders} defaultSize={result?.default_size} />
-        <label className="check" title="Keeps the writing on each sheet inside what the pencil can reach in one go, so no sheet has to be turned. Longer text runs on to more sheets.">
-          <input type="checkbox" checked={onePass} onChange={(e) => setOnePass(e.target.checked)} /> Fit each sheet to one plotter pass (no turning)
-        </label>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={10}
+          spellCheck={false}
+          placeholder="Type what you want written…"
+        />
         <div className="row">
-          <button className="primary" onClick={() => void generate()} disabled={busy}>
+          <button className="primary" onClick={() => void generate()} disabled={busy || !text.trim()}>
             {busy ? 'Writing…' : 'Write it'}
           </button>
           <button
@@ -118,37 +115,49 @@ export default function Write() {
               setSeed(next)
               void generate(next)
             }}
-            disabled={busy}
+            disabled={busy || !text.trim()}
           >
             New variation
           </button>
-          <button onClick={play} disabled={!result}>
-            Replay
-          </button>
         </div>
-        <label className="slider">
-          <span>Preview speed</span>
-          <input type="range" min={100} max={6000} step={100} value={speed} onChange={(e) => setSpeed(+e.target.value)} />
-          <output>{speed} pts/s</output>
-        </label>
-        <div className="row">
-          <button onClick={() => setPlacing(true)} className={placing ? 'primary' : ''}>
-            {placing ? 'Click the page…' : 'Add diagram label'}
-          </button>
-          {labels.length > 0 && <button onClick={() => setLabels([])}>Clear {labels.length} labels</button>}
-          <button
-            disabled={!result}
-            onClick={() =>
-              result &&
-              download(
-                `page-${pageIndex + 1}.svg`,
-                new Blob([pathsToSvg(result.pages[pageIndex], result.page.width, result.page.height)], { type: 'image/svg+xml' }),
-              )
-            }
-          >
-            Download SVG
-          </button>
-        </div>
+        <details className="more">
+          <summary>Handwriting settings</summary>
+          <EnginePicker engine={engine} onChange={setEngine} />
+          <SliderPanel sliders={sliders} onChange={setSliders} defaultSize={result?.default_size} />
+          <label className="check" title="Keeps the writing on each sheet inside what the pencil can reach in one go, so no sheet has to be turned. Longer text runs on to more sheets.">
+            <input type="checkbox" checked={onePass} onChange={(e) => setOnePass(e.target.checked)} /> Fit each sheet to one plotter pass (no turning)
+          </label>
+          <p className="muted small">
+            Layout codes: <code>x^2</code> or <code>x^{'{10}'}</code> for exponents, <code>a_{'{n}'}</code> for subscripts,{' '}
+            <code>\frac{'{a}{b}'}</code> for fractions. A line with just <code>---</code> starts a new sheet.
+          </p>
+          <div className="row">
+            <button onClick={play} disabled={!result}>
+              Replay
+            </button>
+            <button onClick={() => setPlacing(true)} className={placing ? 'primary' : ''}>
+              {placing ? 'Click the page…' : 'Add diagram label'}
+            </button>
+            {labels.length > 0 && <button onClick={() => setLabels([])}>Clear {labels.length} labels</button>}
+            <button
+              disabled={!result}
+              onClick={() =>
+                result &&
+                download(
+                  `page-${pageIndex + 1}.svg`,
+                  new Blob([pathsToSvg(result.pages[pageIndex], result.page.width, result.page.height)], { type: 'image/svg+xml' }),
+                )
+              }
+            >
+              Download SVG
+            </button>
+          </div>
+          <label className="slider">
+            <span>Preview speed</span>
+            <input type="range" min={100} max={6000} step={100} value={speed} onChange={(e) => setSpeed(+e.target.value)} />
+            <output>{speed} pts/s</output>
+          </label>
+        </details>
         {result && (
           <p className="muted small">
             Written with: {result.checkpoint}
